@@ -41,6 +41,7 @@
 ## 5. Acesso e auditoria
 
 - Princípio do menor privilégio: papel (`rh`/`gestor`/`colaborador`) **e** escopo (conta, equipe, próprio).
+- `admin` (cliente) e `contador` **não** leem dado de saúde; o `contador` só baixa exportações e espelhos.
 - `super_admin` (operação do Genus) **não** lê dado de saúde nem biometria de cliente; o acesso excepcional exige justificativa e gera evento `critical`.
 - Trilha imutável (`logs_auditoria`): alteração **e** leitura de dado sensível. Detalhes em `database.md` §11.
 - Login do RH com senha + TOTP (Better Auth).

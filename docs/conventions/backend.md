@@ -47,7 +47,7 @@ packages/
 ### 2.1 Banco em português, código em inglês
 
 - O **banco** é em português (`colaboradores.data_admissao`); o **código** é em inglês (`employee.admissionDate`). **Só o Drizzle traduz**: o schema em `db/schema/` mapeia cada coluna (nome em português) para uma propriedade (inglês), pelas regras de `database.md` §12. Fora dele, ninguém escreve nome de coluna em português.
-- **Valores de enumeração não se traduzem.** `status` vale `'pendente'` no banco, no código (`type Status = 'pendente' | 'aprovado' | ...`) e no JSON. Papéis: `super_admin`, `rh`, `gestor`, `colaborador`.
+- **Valores de enumeração não se traduzem.** `status` vale `'pendente'` no banco, no código (`type Status = 'pendente' | 'aprovado' | ...`) e no JSON. Papéis: `super_admin`, `admin`, `rh`, `gestor`, `colaborador`, `contador`.
 - Rotas, chaves de JSON, eventos (`employee.terminated`), filas e jobs (`recalculate-day`) ficam em inglês.
 - SQL escrito à mão (no `rep-core`, em migrations do `arp` e em relatórios) usa os nomes em português do banco.
 
@@ -95,7 +95,8 @@ export class AdjustmentService {
 
 - O plugin `request-context` monta `req.ctx` = `{ tenantId, userId, employeeId?, role, sessionId, teamScope }` **a partir da sessão**. `tenantId` jamais vem do corpo, da query ou de header do cliente.
 - O mesmo contexto vai para o `AsyncLocalStorage`, e a auditoria lê o ator de lá.
-- **Papéis** (`usuarios.papel`): `super_admin` (operação do Genus) · `rh` (RH do cliente) · `gestor` · `colaborador`. Quem é `gestor` e `colaborador` ao mesmo tempo tem os dois escopos.
+- **Papéis** (`usuarios.papel`): `super_admin` (operação do Genus) · `admin` (administrador do cliente: empresa, usuários, parâmetros) · `rh` (RH do cliente) · `gestor` · `colaborador` · `contador` (só leitura e download). Quem acumula papéis tem a soma dos escopos. Alcance de cada um em `04` §1.4 e §7.1.
+- **Escopo por estabelecimento** (`establishmentScope`): vem de `usuarios_estabelecimentos`; sem linha, vale a conta inteira. Todo repository que lista dados de colaborador aplica esse filtro além do `tenantId`.
 - `app.authorize(...roles)` barra por papel. **Escopo de equipe** (`teamScope`) barra por dado: o gestor só enxerga colaboradores com `gestor_id = ctx.employeeId` **[A DECIDIR]** se herda a hierarquia abaixo ou só diretos.
 - Rotas do funcionário ficam em `/me/*` e **ignoram qualquer `employeeId` recebido**: usam `ctx.employeeId`.
 
