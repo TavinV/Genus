@@ -147,7 +147,7 @@ Pedido que passa por aprovação (ajuste, atestado, férias, folga compensatóri
 
 `CHECK` amarra estado e carimbo: `status IN ('pendente','cancelado') OR (decidido_por_id IS NOT NULL AND decidido_em IS NOT NULL)`. A regra "ninguém decide o próprio pedido" fica no service **e** num `CHECK (decidido_por_id IS DISTINCT FROM solicitado_por_id)`.
 
-**Papéis** (`usuarios.papel`): `super_admin`, `rh`, `gestor`, `colaborador`.
+**Papéis** (`usuarios.papel`): `super_admin`, `admin`, `rh`, `gestor`, `colaborador`, `contador`. Escopo por estabelecimento em `usuarios_estabelecimentos` (`04` §1.4).
 
 ## 10. Dados cifrados e arquivos
 
@@ -228,7 +228,7 @@ export const employees = pgTable('colaboradores', {
 | `marcacoes_tratadas` | `treatedPunches` | `preferencias_notificacao` | `notificationPreferences` |
 | `abonos` | `timeWaivers` | `logs_auditoria` | `auditLogs` |
 | `consentimentos_biometricos` | `biometricConsents` | `embeddings_faciais` | `facialEmbeddings` |
-| `chaves_conta` | `tenantKeys` | | |
+| `chaves_conta` | `tenantKeys` | `usuarios_estabelecimentos` | `userEstablishments` |
 
 **Banco `arp` (nomes dos docs `02` e `03` → identificadores).** O `arp` já estava em português; só ganhou plural e o padrão de colunas:
 
