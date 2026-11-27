@@ -17,3 +17,9 @@ deploy
 !**/.env.*.example
 **/*.log
 apps/collector-api/data
+# O portal tem imagem própria (apps/portal/Dockerfile). Só o package.json dele entra aqui,
+# para o lockfile do workspace continuar completo.
+**/.next
+apps/portal/*
+!apps/portal/package.json
+Genus_*

@@ -15,6 +15,7 @@
     "bullmq": "6.7.8",
     "ioredis": "5.11.1",
     "pg": "8.23.1",
+    "tsx": "4.23.15",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -23,7 +24,6 @@
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "testcontainers": "12.2.1",
-    "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vitest": "5.1.1"
   }

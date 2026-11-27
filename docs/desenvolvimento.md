@@ -180,6 +180,14 @@ pnpm -r test
 
 `.github/workflows/ci-cd.yml` roda os mesmos comandos em todo PR para a `main` e em todo push nela (o pytest da engine só quando `services/face-engine/` muda). No push para a `main`, se os testes passarem, dispara o deploy no Easypanel **só dos serviços cuja imagem mudou**: cada serviço Node depende da própria pasta em `apps/` e de `packages/shared`, `packages/queue`, `db/arp`, `docker/node.Dockerfile` e do lockfile; o portal, de `apps/portal` e do lockfile; a engine, de `services/face-engine`. Os gatilhos ficam nos segredos `EASYPANEL_DEPLOY_<SERVIÇO>` do repositório (`API`, `COLLECTOR_API`, `FACE_ENGINE`, `JOBS`, `PORTAL`, `REP_CORE`). Para refazer o deploy de tudo: Actions → CI/CD → Run workflow com `deploy_all`. No Easypanel, o deploy automático por push precisa ficar desligado, senão todo serviço rebuilda a cada commit.
 
+**A VPS não builda nada.** Cada imagem é construída no runner do GitHub e publicada no GHCR como `ghcr.io/tavinv/genus-<serviço>` (`api`, `collector-api`, `face-engine`, `jobs`, `portal`, `rep-core`), com as tags `latest` e o SHA do commit. Só depois disso o workflow chama o gatilho do Easypanel, que baixa a `latest` e reinicia o serviço. Buildar na VPS (1 vCPU) com vários serviços ao mesmo tempo levava a CPU a 100% e derrubava também os outros sistemas da máquina. Para voltar a uma versão anterior, troque a tag `latest` pelo SHA no serviço do Easypanel. Os endereços internos que o Next fixa no build do portal (`API_URL`, `COLLECTOR_URL`) estão no próprio workflow.
+
+Configuração de cada serviço no Easypanel (feita uma vez):
+
+1. No GitHub, crie um token clássico só com `read:packages` (as imagens são privadas).
+2. Em cada serviço (api, collector-api, face-engine, jobs, portal, rep-core): **Fonte → Imagem Docker**, imagem `ghcr.io/tavinv/genus-<serviço>:latest`, usuário do GitHub e o token como senha.
+3. O comando de cada serviço continua o mesmo (a imagem mantém o `WORKDIR` da pasta do serviço).
+
 ## 7. Postman
 
 A coleção está em YAML (Postman Collection v3) em `postman/collections/Genus Coletor/`, com os environments em `postman/environments/*.environment.yaml`. Guia completo: [`conventions/api-testing.md`](conventions/api-testing.md).

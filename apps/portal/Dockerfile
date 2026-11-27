@@ -1,10 +1,14 @@
+# syntax=docker/dockerfile:1
 # Portal do RH (Next.js standalone). Build da raiz: docker build -f apps/portal/Dockerfile .
+# Em produção a imagem é construída no GitHub Actions e publicada no GHCR; a VPS só baixa.
 FROM node:24-alpine AS build
+ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true
 WORKDIR /repo
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.20.0 --activate
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json eslint.config.js ./
 COPY apps/portal/package.json apps/portal/
-RUN pnpm install --frozen-lockfile --filter @genus/portal...
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @genus/portal...
 COPY apps/portal apps/portal
 ARG NEXT_PUBLIC_USE_MOCKS=true
 # Os rewrites (/portal, /auth, /auth/whoami → api; /coletor → api do coletor) são fixados no build do Next:

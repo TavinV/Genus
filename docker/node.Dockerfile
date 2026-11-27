@@ -6,7 +6,13 @@
 #   DIR  pasta do pacote na raiz     (ex.: apps/collector-api)
 #
 # Cada serviço do Compose passa os dois em `build.args`; o comando vem do próprio serviço.
-# O tsx roda o TypeScript direto, como no resto do monorepo (sem etapa de build).
+# O tsx roda o TypeScript direto, como no resto do monorepo (sem etapa de build); por isso ele
+# fica em `dependencies` de cada pacote que roda em produção.
+#
+# Em produção a imagem é construída no GitHub Actions e publicada no GHCR; a VPS só baixa
+# (ver .github/workflows/ci-cd.yml). A imagem leva SÓ as dependências de produção do pacote:
+# antes o `pnpm fetch` trazia as ~640 dependências do monorepo inteiro (Next, Playwright,
+# Testcontainers…) e o deploy passava minutos copiando e descompactando camadas.
 FROM node:24.14.1-alpine AS base
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH \
@@ -14,20 +20,25 @@ ENV PNPM_HOME=/pnpm \
 RUN corepack enable && corepack prepare pnpm@10.20.0 --activate
 WORKDIR /repo
 
-# Só o lockfile: esta camada fica em cache enquanto as dependências não mudam.
-FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
+# Só os manifestos (lockfile, workspace e cada package.json). O conteúdo desta etapa só muda
+# quando uma dependência muda, então a instalação abaixo fica em cache entre deploys.
+FROM base AS manifests
+COPY . .
+RUN find . -type f ! -name package.json ! -name pnpm-lock.yaml ! -name pnpm-workspace.yaml -delete
 
-FROM deps AS runtime
+FROM base AS deps
 ARG PKG
+COPY --from=manifests /repo ./
+# Este pacote e as dependências dele dentro do monorepo (--filter "<pkg>..."), sem devDependencies.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter "${PKG}..."
+
+FROM base AS runtime
 ARG DIR
 ENV APP_DIR=${DIR}
+COPY --from=deps /repo ./
 COPY . .
-# Instala só este pacote e as dependências dele dentro do monorepo (--filter "<pkg>...").
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --offline --frozen-lockfile --filter "${PKG}..." \
- && mkdir -p /repo/${DIR}/data \
+RUN mkdir -p /repo/${DIR}/data \
  && chown -R node:node /repo/${DIR}
 USER node
 WORKDIR /repo/${DIR}
