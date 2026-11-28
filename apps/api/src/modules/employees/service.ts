@@ -248,6 +248,41 @@ export class EmployeeService {
   }
 
   /**
+   * Novo PIN para quem esqueceu o seu. Sorteado aqui, sai UMA vez na resposta e só o hash fica no
+   * banco; o anterior deixa de valer na hora. Colaborador desligado não recebe PIN novo.
+   * A auditoria registra só que houve troca, nunca o PIN.
+   */
+  async resetPin(ctx: RequestContext, id: number): Promise<{ pin: string; pinSetAt: string }> {
+    const tenantId = tenantOf(ctx);
+    await findEmployeeInScope(this.d.db, ctx, id);
+    const pin = generatePin();
+    const pinHash = await hashPin(pin, this.d.pin.current);
+    const now = this.d.clock.now();
+    await this.d.db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ terminationDate: employees.terminationDate, pinSetAt: employees.pinSetAt })
+        .from(employees)
+        .where(and(eq(employees.tenantId, tenantId), eq(employees.id, id)))
+        .for('update');
+      if (current!.terminationDate !== null) throw new HttpError(409, 'COLABORADOR_DESLIGADO', 'O colaborador já está desligado');
+      await tx
+        .update(employees)
+        .set({ pinHash, pinSetAt: now })
+        .where(and(eq(employees.tenantId, tenantId), eq(employees.id, id)));
+      await recordAudit(tx, this.d.clock, {
+        tenantId,
+        userId: ctx.userId,
+        entity: 'colaboradores',
+        entityId: id,
+        action: 'alteracao',
+        before: { pinSetAt: current!.pinSetAt },
+        after: { pinSetAt: now, pinReset: true },
+      });
+    });
+    return { pin, pinSetAt: now.toISOString() };
+  }
+
+  /**
    * Desligamento (RF05): não apaga nada. Grava data e motivo, encerra o vínculo
    * e a escala abertos na data e desativa o acesso do colaborador ao portal
    * (o trigger trg_usuario_inativo_sessoes derruba as sessões).

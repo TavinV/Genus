@@ -2,9 +2,9 @@
  * Acesso a dados dos convites. Tudo filtra por `conta_id`, menos `findPendingByTokenHash`: nas rotas
  * públicas não há sessão, e a conta sai do próprio convite achado pelo hash do token.
  */
-import { and, desc, eq, gt } from 'drizzle-orm';
+import { and, count, desc, eq, gt, ne } from 'drizzle-orm';
 import type { Executor } from '../../db/executor';
-import { tenants, userInvites, users } from '../../db/schema';
+import { companies, employees, establishments, tenants, userEstablishments, userInvites, users } from '../../db/schema';
 
 const columns = {
   id: userInvites.id,
@@ -12,6 +12,8 @@ const columns = {
   email: userInvites.email,
   name: userInvites.name,
   role: userInvites.role,
+  companyId: userInvites.companyId,
+  employeeId: userInvites.employeeId,
   status: userInvites.status,
   attempts: userInvites.attempts,
   expiresAt: userInvites.expiresAt,
@@ -25,6 +27,8 @@ export interface InviteRow {
   email: string;
   name: string;
   role: string;
+  companyId: number | null;
+  employeeId: number | null;
   status: string;
   attempts: number;
   expiresAt: Date;
@@ -34,7 +38,7 @@ export interface InviteRow {
 
 export type NewInvite = Pick<
   typeof userInvites.$inferInsert,
-  'tenantId' | 'email' | 'name' | 'role' | 'cpfHash' | 'tokenHash' | 'expiresAt' | 'createdById' | 'createdAt'
+  'tenantId' | 'email' | 'name' | 'role' | 'companyId' | 'employeeId' | 'cpfHash' | 'tokenHash' | 'expiresAt' | 'createdById' | 'createdAt'
 >;
 
 const byId = (tenantId: number, inviteId: number) => and(eq(userInvites.tenantId, tenantId), eq(userInvites.id, inviteId));
@@ -61,8 +65,36 @@ export class InviteRepository {
     return row !== undefined;
   }
 
-  async list(ex: Executor, tenantId: number): Promise<InviteRow[]> {
-    return ex.select(columns).from(userInvites).where(eq(userInvites.tenantId, tenantId)).orderBy(desc(userInvites.createdAt), desc(userInvites.id));
+  async list(ex: Executor, tenantId: number): Promise<(InviteRow & { companyName: string | null })[]> {
+    return ex
+      .select({ ...columns, companyName: companies.legalName })
+      .from(userInvites)
+      .leftJoin(companies, and(eq(companies.tenantId, userInvites.tenantId), eq(companies.id, userInvites.companyId)))
+      // O acesso do colaborador é cuidado no cadastro dele, não na lista de usuários do portal.
+      .where(and(eq(userInvites.tenantId, tenantId), ne(userInvites.role, 'colaborador')))
+      .orderBy(desc(userInvites.createdAt), desc(userInvites.id));
+  }
+
+  /** Empresa da conta e quantos estabelecimentos ela tem. */
+  async company(ex: Executor, tenantId: number, companyId: number): Promise<{ name: string; isActive: boolean; establishments: number } | undefined> {
+    const [row] = await ex
+      .select({ name: companies.legalName, isActive: companies.isActive, establishments: count(establishments.id) })
+      .from(companies)
+      .leftJoin(establishments, and(eq(establishments.tenantId, companies.tenantId), eq(establishments.companyId, companies.id)))
+      .where(and(eq(companies.tenantId, tenantId), eq(companies.id, companyId)))
+      .groupBy(companies.id);
+    return row;
+  }
+
+  /** Restringe o usuário aos estabelecimentos da empresa (escopo lido no request-context). Devolve quantos. */
+  async scopeUserToCompany(ex: Executor, tenantId: number, userId: number, companyId: number): Promise<number> {
+    const ids = await ex
+      .select({ id: establishments.id })
+      .from(establishments)
+      .where(and(eq(establishments.tenantId, tenantId), eq(establishments.companyId, companyId)));
+    if (ids.length === 0) return 0;
+    await ex.insert(userEstablishments).values(ids.map((e) => ({ tenantId, userId, establishmentId: e.id })));
+    return ids.length;
   }
 
   async getForUpdate(ex: Executor, tenantId: number, inviteId: number): Promise<InviteRow | undefined> {
@@ -85,6 +117,51 @@ export class InviteRepository {
       .update(userInvites)
       .set({ status: 'revogado' })
       .where(and(eq(userInvites.tenantId, tenantId), eq(userInvites.email, email), eq(userInvites.status, 'pendente')))
+      .returning({ id: userInvites.id });
+    return rows.map((r) => r.id);
+  }
+
+  /** Colaborador travado (FOR UPDATE): dois convites do mesmo colaborador não correm juntos. */
+  async lockEmployee(ex: Executor, tenantId: number, employeeId: number): Promise<{ name: string; cpf: string; terminationDate: string | null } | undefined> {
+    const [row] = await ex
+      .select({ name: employees.name, cpf: employees.cpf, terminationDate: employees.terminationDate })
+      .from(employees)
+      .where(and(eq(employees.tenantId, tenantId), eq(employees.id, employeeId)))
+      .for('update');
+    return row;
+  }
+
+  async employeeActive(ex: Executor, tenantId: number, employeeId: number): Promise<boolean> {
+    const row = await this.lockEmployee(ex, tenantId, employeeId);
+    return row !== undefined && row.terminationDate === null;
+  }
+
+  /** Usuário já ligado ao colaborador (o banco aceita um só: `usuario_colaborador_id_key`). */
+  async userOfEmployee(ex: Executor, tenantId: number, employeeId: number): Promise<{ email: string; isActive: boolean } | undefined> {
+    const [row] = await ex
+      .select({ email: users.email, isActive: users.isActive })
+      .from(users)
+      .where(and(eq(users.tenantId, tenantId), eq(users.employeeId, employeeId)))
+      .limit(1);
+    return row;
+  }
+
+  /** Convite pendente e no prazo mais recente do colaborador. */
+  async pendingForEmployee(ex: Executor, tenantId: number, employeeId: number, now: Date): Promise<InviteRow | undefined> {
+    const [row] = await ex
+      .select(columns)
+      .from(userInvites)
+      .where(and(eq(userInvites.tenantId, tenantId), eq(userInvites.employeeId, employeeId), eq(userInvites.status, 'pendente'), gt(userInvites.expiresAt, now)))
+      .orderBy(desc(userInvites.createdAt), desc(userInvites.id))
+      .limit(1);
+    return row;
+  }
+
+  async revokePendingByEmployee(ex: Executor, tenantId: number, employeeId: number): Promise<number[]> {
+    const rows = await ex
+      .update(userInvites)
+      .set({ status: 'revogado' })
+      .where(and(eq(userInvites.tenantId, tenantId), eq(userInvites.employeeId, employeeId), eq(userInvites.status, 'pendente')))
       .returning({ id: userInvites.id });
     return rows.map((r) => r.id);
   }

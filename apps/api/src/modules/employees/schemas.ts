@@ -65,6 +65,8 @@ export const createdEmployeeResponse = z.object({
     initialPin: z.string(),
   }),
 });
+/** PIN novo (esqueceu o anterior), mostrado UMA vez. */
+export const resetPinResponse = z.strictObject({ data: z.strictObject({ pin: z.string(), pinSetAt: z.string() }) });
 export const employeeListResponse = z.object({ data: z.array(employeeDto), meta: listMeta });
 
 export const assignmentParams = z.object({ id: positiveId, assignmentId: positiveId });

@@ -77,7 +77,7 @@ export function CertificatesScreen() {
   if (!allowed) {
     return (
       <PageHeader title={COPY.title} subtitle={COPY.subtitle}>
-        <ForbiddenState screen="Atestados" establishment="este estabelecimento" />
+        <ForbiddenState screen="Atestados" />
       </PageHeader>
     );
   }

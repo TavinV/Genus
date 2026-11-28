@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { BrandMark } from '@/components/shell/BrandMark';
 import { Button } from '@/components/ui/Button';
-import { CheckboxField, TextInput } from '@/components/ui/Fields';
+import { CheckboxField, PasswordInput, TextInput } from '@/components/ui/Fields';
 import { useZodForm } from '@/components/ui/useZodForm';
 import { ApiError, asApiError } from '@/lib/api/errors';
 import { useApi } from '@/lib/api/provider';
@@ -53,7 +53,7 @@ function PasswordStep({ onDone }: { onDone: (s: Setup) => void }) {
   });
   return (
     <form noValidate onSubmit={submit} className="flex flex-col gap-4">
-      <TextInput label={COPY.twoFactor.password} type="password" autoComplete="current-password" required error={errors.password?.message} {...register('password')} />
+      <PasswordInput label={COPY.twoFactor.password} autoComplete="current-password" required error={errors.password?.message} {...register('password')} />
       {error && <p role="alert" className="m-0 text-sm text-danger">{error}</p>}
       <Button type="submit" loading={isSubmitting} className="h-11 w-full">{COPY.twoFactor.passwordSubmit}</Button>
     </form>

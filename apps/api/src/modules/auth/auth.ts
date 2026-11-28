@@ -26,7 +26,7 @@ export const CLIENT_IP_HEADER = 'x-genus-client-ip';
 
 export const AUTH_BASE_PATH = '/auth';
 export const SESSION_COOKIE_PREFIX = 'genus';
-export const MIN_PASSWORD_LENGTH = 12; // [A CONFIRMAR] política de senha
+export const MIN_PASSWORD_LENGTH = 8; // [A CONFIRMAR] política de senha
 
 export interface AuthConfig {
   /** Segredo do Better Auth (≥ 32 caracteres): assina cookies, cifra segredo TOTP e chave privada do JWT. */

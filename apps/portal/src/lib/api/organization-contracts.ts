@@ -43,6 +43,9 @@ export interface Invite {
   name: string;
   email: string;
   role: InviteRole;
+  /** Convite de uma empresa: o usuário só enxerga os estabelecimentos dela. null = conta inteira. */
+  companyId: EntityId | null;
+  companyName: string | null;
   status: InviteStatus;
   expiresAt: string;
   createdAt: string;
@@ -54,6 +57,8 @@ export interface CreateInviteInput {
   role: InviteRole;
   /** 11 dígitos. Só no corpo do POST. */
   cpf: string;
+  /** Empresa da conta; ausente ou null = conta inteira. */
+  companyId?: EntityId | null;
 }
 export interface CreatedInvite {
   invite: Invite;
@@ -64,11 +69,27 @@ export interface InvitePreview {
   tenantName: string;
   name: string;
   emailMasked: string;
-  role: InviteRole;
+  role: InviteRole | 'colaborador';
+  companyName: string | null;
   expiresAt: string;
 }
 export interface AcceptInviteInput {
   token: string;
   cpf: string;
   password: string;
+}
+
+/** Situação do acesso do colaborador ao portal (/me). */
+export type EmployeeAccessStatus = 'sem_acesso' | 'convite_pendente' | 'ativo' | 'inativo';
+export interface EmployeeAccess {
+  status: EmployeeAccessStatus;
+  /** E-mail do usuário ou do convite pendente. */
+  email: string | null;
+  /** Prazo do convite pendente. */
+  expiresAt: string | null;
+}
+export interface CreatedEmployeeAccess {
+  access: EmployeeAccess;
+  /** Devolvido uma vez; só vive no estado do diálogo que mostra o link. */
+  token: string;
 }

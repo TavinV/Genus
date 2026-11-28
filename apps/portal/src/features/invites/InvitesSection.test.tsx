@@ -10,6 +10,21 @@ const CPF = '11144477735';
 beforeEach(() => resetMockInvites());
 
 describe('/rh/usuarios', () => {
+  it('convida só para uma empresa: o campo Acesso manda o id da empresa e a lista mostra o nome', async () => {
+    const create = vi.fn(mockInvitesApi.create);
+    renderWithSession(<UsersScreen />, { role: 'admin', api: { invites: { create } } });
+    await userEvent.click(await screen.findByRole('button', { name: 'Convidar' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByLabelText(/^Nome completo/), 'Bruno Reis');
+    await userEvent.type(within(dialog).getByLabelText(/^E-mail/), 'bruno@exemplo.test');
+    await userEvent.type(within(dialog).getByLabelText(/^CPF/), CPF);
+    await userEvent.click(within(dialog).getByLabelText(/^Acesso/));
+    await userEvent.click(await screen.findByRole('option', { name: 'Usina Boa Vista S.A.' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Criar convite' }));
+    await screen.findByTestId('invite-link');
+    expect(create).toHaveBeenCalledWith(null, expect.objectContaining({ email: 'bruno@exemplo.test', companyId: '2' }));
+  });
+
   it('só o admin acessa; o rh não consulta os convites', async () => {
     const list = vi.fn(mockInvitesApi.list);
     renderWithSession(<UsersScreen />, { role: 'rh', api: { invites: { list } } });
@@ -28,7 +43,7 @@ describe('/rh/usuarios', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Criar convite' }));
 
     const link = await screen.findByTestId('invite-link');
-    expect(create).toHaveBeenCalledWith(null, { name: 'Ana Souza', email: 'ana@exemplo.test', role: 'rh', cpf: CPF });
+    expect(create).toHaveBeenCalledWith(null, { name: 'Ana Souza', email: 'ana@exemplo.test', role: 'rh', cpf: CPF, companyId: null });
     const { token } = await (create.mock.results[0]?.value as ReturnType<typeof create>);
     expect(link).toHaveTextContent(`${window.location.origin}/convite#${token}`);
     expect(screen.getByText(/vai precisar do CPF/)).toBeInTheDocument();

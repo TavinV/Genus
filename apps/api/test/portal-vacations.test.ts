@@ -42,7 +42,7 @@ describe('período aquisitivo', () => {
     });
   });
 
-  it('sobreposto → 409 PERIODO_AQUISITIVO_SOBREPOSTO; data inválida → 400; admin consulta mas não abre', async () => {
+  it('sobreposto → 409 PERIODO_AQUISITIVO_SOBREPOSTO; data inválida → 400; admin consulta e abre', async () => {
     const emp = await employeeWithPeriod();
     const dup = await h.call(rhA, 'POST', `/portal/employees/${emp.id}/vacation-periods`, { startDate: '2025-12-01' });
     expect(dup.statusCode).toBe(409);
@@ -50,7 +50,7 @@ describe('período aquisitivo', () => {
     expect((await h.call(rhA, 'POST', `/portal/employees/${emp.id}/vacation-periods`, { startDate: '2025-02-30' })).statusCode).toBe(400);
     const admin = (await h.loginAs(org, 'admin')).cookie;
     expect((await h.call(admin, 'GET', `/portal/employees/${emp.id}/vacation-periods`)).statusCode).toBe(200);
-    expect((await h.call(admin, 'POST', `/portal/employees/${emp.id}/vacation-periods`, { startDate: '2026-06-01' })).statusCode).toBe(403);
+    expect((await h.call(admin, 'POST', `/portal/employees/${emp.id}/vacation-periods`, { startDate: '2026-06-01' })).statusCode).toBe(201);
   });
 });
 
@@ -158,17 +158,17 @@ describe('perfis, escopo e portal do colaborador', () => {
     expect((await h.call(colab, 'GET', `/portal/employees/${other.id}/vacation-periods`)).statusCode).toBe(403);
   });
 
-  it('admin e contador não decidem (403); rh de outro estabelecimento e de outra conta → 404', async () => {
+  it('contador não decide (403); admin decide; rh de outro estabelecimento e de outra conta → 404', async () => {
     const emp = await employeeWithPeriod();
     const id = (await h.call(rhA, 'POST', `/portal/employees/${emp.id}/vacations`, { accrualPeriodId: emp.periodId, startDate: '2027-03-01', endDate: '2027-03-10' })).json().data.id;
-    for (const role of ['admin', 'contador'] as const) {
-      const { cookie } = await h.loginAs(org, role);
-      expect((await h.call(cookie, 'POST', `/portal/vacations/${id}/approve`, {})).statusCode, role).toBe(403);
-    }
+    const accountant = (await h.loginAs(org, 'contador')).cookie;
+    expect((await h.call(accountant, 'POST', `/portal/vacations/${id}/approve`, {})).statusCode).toBe(403);
     const scoped = (await h.loginAs(org, 'rh', { establishments: [org.otherEstablishmentId] })).cookie;
     expect((await h.call(scoped, 'POST', `/portal/vacations/${id}/approve`, {})).statusCode).toBe(404);
     expect((await h.call(scoped, 'GET', `/portal/employees/${emp.id}/vacation-periods`)).statusCode).toBe(404);
     const foreign = (await h.loginAs(await h.createOrg(), 'rh')).cookie;
     expect((await h.call(foreign, 'POST', `/portal/vacations/${id}/approve`, {})).statusCode).toBe(404);
+    const admin = (await h.loginAs(org, 'admin')).cookie;
+    expect((await h.call(admin, 'POST', `/portal/vacations/${id}/approve`, {})).json().data.status).toBe('aprovada');
   });
 });

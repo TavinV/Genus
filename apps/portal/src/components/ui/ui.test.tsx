@@ -29,10 +29,11 @@ describe('componentes base', () => {
     const { container } = render(<>
       <EmptyState icon={Tray} title="Fila vazia" text="Nada por aqui." />
       <ErrorState what="a fila" code="Erro 503" onRetry={() => {}} />
-      <ForbiddenState screen="Atestados" establishment="Fazenda Santa Helena" />
+      <ForbiddenState screen="Atestados" />
     </>);
     expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível carregar a fila');
-    expect(screen.getByText('ERRO 403')).toBeInTheDocument();
+    expect(screen.getByText('ACESSO RESTRITO')).toBeInTheDocument();
+    expect(screen.getByText(/não permite abrir “Atestados”/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 });

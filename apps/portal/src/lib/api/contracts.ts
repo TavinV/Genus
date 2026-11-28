@@ -1020,6 +1020,8 @@ export interface Establishment {
   id: EntityId;
   name: string;
   subtitle: string;
+  /** Empresa do estabelecimento (`subtitle` é a razão social dela). Ausente nas opções sintéticas da tela. */
+  companyId?: EntityId;
   isActive: boolean;
 }
 

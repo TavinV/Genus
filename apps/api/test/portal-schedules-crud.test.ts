@@ -116,7 +116,7 @@ describe('troca de escala', () => {
     expect((await h.call(rh, 'PATCH', `/portal/employees/${emp.id}/schedules/${created.id}`, { validTo: null })).json().data.validTo).toBeNull();
   });
 
-  it('outra conta: 404; admin lê mas não troca (403)', async () => {
+  it('outra conta: 404; admin lê e troca; contador não troca (403)', async () => {
     const emp = await h.createEmployee(org);
     const other = await h.createOrg();
     const intruder = await h.loginAs(other, 'rh');
@@ -124,7 +124,9 @@ describe('troca de escala', () => {
     expect((await h.call(intruder.cookie, 'GET', `/portal/schedules/${fiveByTwo}/employees`)).statusCode).toBe(404);
     const admin = await h.loginAs(org, 'admin');
     expect((await h.call(admin.cookie, 'GET', `/portal/schedules/${fiveByTwo}/employees`)).statusCode).toBe(200);
-    expect((await h.call(admin.cookie, 'POST', `/portal/employees/${emp.id}/schedules/switch`, { scheduleId: fiveByTwo, validFrom: '2026-11-20' })).statusCode).toBe(403);
+    expect((await h.call(admin.cookie, 'POST', `/portal/employees/${emp.id}/schedules/switch`, { scheduleId: fiveByTwo, validFrom: '2026-11-20' })).statusCode).toBe(201);
+    const accountant = await h.loginAs(org, 'contador');
+    expect((await h.call(accountant.cookie, 'POST', `/portal/employees/${emp.id}/schedules/switch`, { scheduleId: fiveByTwo, validFrom: '2026-11-25' })).statusCode).toBe(403);
   });
 });
 

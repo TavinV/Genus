@@ -10,7 +10,7 @@ export function NoAccessScreen() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col justify-center gap-4 p-4 md:p-8">
       <h1 className="sr-only">Sem acesso</h1>
-      <ForbiddenState screen="os módulos de RH" establishment="esta conta" />
+      <ForbiddenState screen="Módulos de RH" />
       <Button variant="secondary" className="h-11 self-center" icon={<SignOut size={18} aria-hidden />} onClick={() => void signOut()}>Sair</Button>
     </main>
   );

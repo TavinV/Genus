@@ -19,12 +19,12 @@ export class EstablishmentService {
     if (ctx.role === 'colaborador') conditions.push(this.ownEstablishment(tenantId, ctx.employeeId));
 
     const rows = await this.d.db
-      .select({ id: establishments.id, name: establishments.name, subtitle: companies.legalName, isActive: establishments.isActive })
+      .select({ id: establishments.id, name: establishments.name, subtitle: companies.legalName, companyId: establishments.companyId, isActive: establishments.isActive })
       .from(establishments)
       .innerJoin(companies, and(eq(companies.tenantId, establishments.tenantId), eq(companies.id, establishments.companyId)))
       .where(and(...conditions))
       .orderBy(asc(establishments.name), asc(establishments.id));
-    return rows.map((r) => ({ ...r, id: Number(r.id) }));
+    return rows.map((r) => ({ ...r, id: Number(r.id), companyId: Number(r.companyId) }));
   }
 
   private ownEstablishment(tenantId: number, employeeId: number | null): SQL {

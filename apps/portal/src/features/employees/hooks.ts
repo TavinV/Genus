@@ -34,6 +34,9 @@ export const useCreateEmployee = () => useApiMutation((api, body: CreateEmployee
 export const useUpdateEmployee = () =>
   useApiMutation((api, v: { id: EntityId; body: UpdateEmployeeBody }) => api.employees.update(v.id, v.body), { invalidates: ['employees'] });
 
+/** Não invalida nada: o PIN não aparece em lista nenhuma. */
+export const useResetPin = () => useApiMutation((api, id: EntityId) => api.employees.resetPin(id));
+
 export const useTerminateEmployee = () =>
   useApiMutation((api, v: { id: EntityId; body: TerminateEmployeeBody }) => api.employees.terminate(v.id, v.body), {
     invalidates: ['employees', 'assignments', 'timesheets', 'day'],

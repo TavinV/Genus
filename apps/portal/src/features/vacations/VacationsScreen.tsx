@@ -72,7 +72,7 @@ export function VacationsScreen() {
   if (!allowed) {
     return (
       <PageHeader title={COPY.title} subtitle={COPY.subtitle}>
-        <ForbiddenState screen="Férias" establishment="este estabelecimento" />
+        <ForbiddenState screen="Férias" />
       </PageHeader>
     );
   }

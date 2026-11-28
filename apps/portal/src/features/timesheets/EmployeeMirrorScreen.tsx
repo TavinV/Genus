@@ -40,12 +40,12 @@ const CIVIL = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Rota `/rh/colaboradores/[id]`: `rawId` é o `params.id` cru; inválido → "não encontrado" sem chamar a api. */
 export function EmployeeMirrorScreen({ rawId }: { rawId: string | string[] | undefined }) {
-  const { me, establishment } = useSession();
+  const { me } = useSession();
   const id = parseRouteId(rawId);
   const allowed = can(me.role, 'timesheet.view');
   const employee = useApiQuery('employees', { id }, (api, signal) => api.employees.get(id as EntityId, signal), { enabled: id !== null && allowed });
 
-  if (!allowed) return <ForbiddenState screen="o espelho do colaborador" establishment={establishment.name} />;
+  if (!allowed) return <ForbiddenState screen="Espelho do colaborador" />;
   if (id === null) {
     return (
       <PageHeader title="Espelho do colaborador">

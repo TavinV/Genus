@@ -1,8 +1,12 @@
 'use client';
-/** Convites de uma conta: lista, convidar e revogar. `tenantId` null = a própria conta; preenchido = super_admin. */
+/**
+ * Convites de uma conta: lista, convidar e revogar. `tenantId` null = a própria conta; preenchido = super_admin.
+ * `companies`: empresas da conta, para convidar alguém só para uma delas.
+ */
 import { EnvelopeSimple, UserPlus } from '@phosphor-icons/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
+import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable } from '@/components/ui/DataTable';
@@ -16,13 +20,13 @@ import { formatInstant } from '@/lib/format';
 import { ROLE_LABEL } from '@/lib/labels';
 import { useApiMutation, useApiQuery, useInvalidate } from '@/lib/query/hooks';
 import { COPY, INVITE_STATUS_LABEL, inviteError } from './copy';
-import { InviteDialog } from './InviteDialog';
+import { InviteDialog, type InviteCompanyOption } from './InviteDialog';
 import { InviteLinkDialog } from './InviteLinkDialog';
 
 const deadline = (i: Invite) =>
   i.acceptedAt ? `Aceito em ${formatInstant(i.acceptedAt)}` : i.status === 'pendente' ? `Vale até ${formatInstant(i.expiresAt)}` : `Criado em ${formatInstant(i.createdAt)}`;
 
-export function InvitesSection({ tenantId }: { tenantId: EntityId | null }) {
+export function InvitesSection({ tenantId, companies = [] }: { tenantId: EntityId | null; companies?: InviteCompanyOption[] }) {
   const query = useApiQuery('invites', { tenantId }, (api, signal) => api.invites.list(tenantId, signal));
   const revoke = useApiMutation((api, id: EntityId) => api.invites.revoke(tenantId, id));
   const invalidate = useInvalidate();
@@ -31,9 +35,10 @@ export function InvitesSection({ tenantId }: { tenantId: EntityId | null }) {
   const [revoking, setRevoking] = useState<Invite | null>(null);
 
   const columns = useMemo<ColumnDef<Invite, never>[]>(() => [
-    { id: 'name', header: 'Nome', cell: ({ row }) => <span className="font-semibold">{row.original.name}</span> },
+    { id: 'name', header: 'Nome', cell: ({ row }) => <span className="flex items-center gap-3"><Avatar name={row.original.name} size="sm" /><span className="font-semibold">{row.original.name}</span></span> },
     { id: 'email', header: 'E-mail', cell: ({ row }) => row.original.email },
     { id: 'role', header: 'Perfil', cell: ({ row }) => ROLE_LABEL[row.original.role] },
+    { id: 'access', header: 'Acesso', cell: ({ row }) => row.original.companyName ?? COPY.wholeAccount },
     { id: 'status', header: 'Situação', cell: ({ row }) => <StatusBadge {...INVITE_STATUS_LABEL[row.original.status]} /> },
     { id: 'deadline', header: 'Prazo', cell: ({ row }) => <span className="tabular-nums">{deadline(row.original)}</span> },
     {
@@ -79,7 +84,7 @@ export function InvitesSection({ tenantId }: { tenantId: EntityId | null }) {
         {(invites) => <DataTable<Invite> caption={COPY.tableCaption} columns={columns} data={invites} getRowId={(i) => i.id} />}
       </QueryView>
 
-      <InviteDialog tenantId={tenantId} open={inviting} onOpenChange={setInviting} onCreated={setCreated} />
+      <InviteDialog tenantId={tenantId} companies={companies} open={inviting} onOpenChange={setInviting} onCreated={setCreated} />
       <InviteLinkDialog created={created} onDone={() => setCreated(null)} />
       <ConfirmDialog
         open={revoking !== null}

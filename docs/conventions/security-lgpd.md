@@ -49,7 +49,7 @@
 - **Bootstrap do super_admin por ambiente:** `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_NAME` e `SUPER_ADMIN_PASSWORD_HASH` (hash scrypt do Better Auth, preferido em produção) ou `SUPER_ADMIN_PASSWORD` (só dev). Senha e hash nunca vão para log, resposta nem auditoria. Em produção, sem essas variáveis, a api avisa em log com `warn`.
 - Trilha imutável (`logs_auditoria`): alteração **e** leitura de dado sensível. Detalhes em `database.md` §11.
 - Login do RH com senha + TOTP (Better Auth, `apps/api/src/modules/auth/`):
-  - **Senha:** hash scrypt em `credenciais_login.senha_hash`, mínimo de 12 caracteres **[A CONFIRMAR]**. Sem cadastro público: usuário só nasce pelo `UserService`.
+  - **Senha:** hash scrypt em `credenciais_login.senha_hash`, mínimo de 8 caracteres **[A CONFIRMAR]**. Sem cadastro público: usuário só nasce pelo `UserService`.
   - **Sessão:** cookie `httpOnly`, `SameSite=Lax`, `Secure` fora do dev, 8 h **[A CONFIRMAR]**. Sign-out e usuário desativado (`ativo = false`, trigger) derrubam a sessão na hora.
   - **JWT curto:** 15 min, EdDSA, em `GET /auth/token`, para cliente sem cookie. Só leva `sub` e `sid`; papel e conta são relidos do banco a cada requisição, e o JWT cai junto com a sessão de origem. A chave privada fica cifrada em `chaves_jwt`.
   - **TOTP:** segredo e códigos de backup cifrados pelo Better Auth em `dois_fatores`. O `super_admin` sem 2FA só consegue ativá-lo; qualquer outra rota devolve 403.

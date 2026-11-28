@@ -11,15 +11,16 @@ import { notify } from '@/components/ui/notify';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/shadcn/alert-dialog';
 import { COPY } from './copy';
 
-export function InitialPinDialog({ pin, name, onClose }: { pin: string | null; name: string; onClose: () => void }) {
+/** `reset`: PIN novo de quem esqueceu o anterior (mesmo cuidado: aparece uma vez). */
+export function InitialPinDialog({ pin, name, reset = false, onClose }: { pin: string | null; name: string; reset?: boolean; onClose: () => void }) {
   return (
     <AlertDialog open={pin !== null}>
-      {pin !== null && <PinBody pin={pin} name={name} onClose={onClose} />}
+      {pin !== null && <PinBody pin={pin} name={name} reset={reset} onClose={onClose} />}
     </AlertDialog>
   );
 }
 
-function PinBody({ pin, name, onClose }: { pin: string; name: string; onClose: () => void }) {
+function PinBody({ pin, name, reset, onClose }: { pin: string; name: string; reset: boolean; onClose: () => void }) {
   const [ack, setAck] = useState(false);
 
   const copy = async () => {
@@ -34,8 +35,8 @@ function PinBody({ pin, name, onClose }: { pin: string; name: string; onClose: (
   return (
     <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()} className="gap-4">
       <AlertDialogHeader>
-        <AlertDialogTitle className="flex items-center gap-2 text-lg font-bold"><Key size={22} aria-hidden />{COPY.pin.title}</AlertDialogTitle>
-        <AlertDialogDescription className="text-muted">{`${name} foi cadastrado(a). ${COPY.pin.text}`}</AlertDialogDescription>
+        <AlertDialogTitle className="flex items-center gap-2 text-lg font-bold"><Key size={22} aria-hidden />{reset ? COPY.pinReset.title : COPY.pin.title}</AlertDialogTitle>
+        <AlertDialogDescription className="text-muted">{reset ? `${name}: ${COPY.pinReset.text}` : `${name} foi cadastrado(a). ${COPY.pin.text}`}</AlertDialogDescription>
       </AlertDialogHeader>
       <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3">
         <output aria-label="Valor do PIN" className="font-mono text-3xl font-bold tracking-[0.3em] tabular-nums">{pin}</output>

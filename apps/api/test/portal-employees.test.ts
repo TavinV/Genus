@@ -288,3 +288,36 @@ describe('POST /portal/employees/:id/terminate', () => {
     expect((await h.call(rh, 'POST', `/portal/employees/${emp.id}/terminate`, { terminationDate: '2026-10-31' })).statusCode).toBe(400);
   });
 });
+
+describe('POST /portal/employees/:id/pin/reset', () => {
+  it('admin gera PIN novo: sai uma vez, troca o hash, auditoria sem o PIN; contador → 403; outra conta → 404; desligado → 409', async () => {
+    const created = (await h.call(rh, 'POST', '/portal/employees', newEmployee())).json().data;
+    const before = await h.one<{ pin_hash: string }>('SELECT pin_hash FROM rh.colaboradores WHERE id = $1', [created.id]);
+    const admin = (await h.loginAs(org, 'admin')).cookie;
+
+    const res = await h.call(admin, 'POST', `/portal/employees/${created.id}/pin/reset`);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    const { pin } = res.json().data;
+    expect(pin).toMatch(/^[0-9]{6}$/);
+    const after = await h.one<{ pin_hash: string }>('SELECT pin_hash FROM rh.colaboradores WHERE id = $1', [created.id]);
+    expect(after.pin_hash).not.toBe(before.pin_hash);
+    expect(after.pin_hash).not.toContain(pin);
+    const audit = await h.one<{ dados_depois: Record<string, unknown> }>(
+      "SELECT dados_depois FROM rh.auditorias WHERE entidade = 'colaboradores' AND entidade_id = $1 AND acao = 'alteracao' ORDER BY id DESC LIMIT 1",
+      [created.id],
+    );
+    expect(JSON.stringify(audit.dados_depois)).not.toContain(pin);
+    h.expectLogsWithout(pin);
+
+    const accountant = (await h.loginAs(org, 'contador')).cookie;
+    expect((await h.call(accountant, 'POST', `/portal/employees/${created.id}/pin/reset`)).statusCode).toBe(403);
+    const foreign = (await h.loginAs(await h.createOrg(), 'admin')).cookie;
+    expect((await h.call(foreign, 'POST', `/portal/employees/${created.id}/pin/reset`)).statusCode).toBe(404);
+
+    await h.call(rh, 'POST', `/portal/employees/${created.id}/terminate`, { terminationDate: '2026-11-20', reason: 'Pedido de demissão' });
+    const gone = await h.call(rh, 'POST', `/portal/employees/${created.id}/pin/reset`);
+    expect(gone.statusCode).toBe(409);
+    expect(gone.json().code).toBe('COLABORADOR_DESLIGADO');
+  });
+});

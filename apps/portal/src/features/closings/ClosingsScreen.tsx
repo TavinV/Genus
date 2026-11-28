@@ -143,7 +143,7 @@ export function ClosingsScreen() {
     [canMirror, canManage, canReopen, generate, setUrl],
   );
 
-  if (!allowed) return <ForbiddenState screen="Fechamento" establishment={establishment.name} />;
+  if (!allowed) return <ForbiddenState screen="Fechamento" />;
 
   const onConfirmClose = async (closing: Closing) => {
     try {

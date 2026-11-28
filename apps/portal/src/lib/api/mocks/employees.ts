@@ -6,6 +6,7 @@
  */
 import type { Assignment, CreateAssignmentBody, Employee, EntityId } from '../contracts';
 import type { EmployeesApi } from '../endpoints/employees';
+import type { EmployeeAccess } from '../organization-contracts';
 import { mockCurrentRole } from './index';
 import { clone, delay, matchesQuery, mockFail, mockId, mockNotFound, paginate } from './runtime';
 import { cpfFor, departmentIdOf, jobTitleIdOf, SEED_EMPLOYEES } from './seed';
@@ -62,6 +63,7 @@ let assignmentRows: Assignment[] = seedAssignments();
 export function resetMockEmployees() {
   rows = fromSeed();
   assignmentRows = seedAssignments();
+  accessRows.clear();
 }
 
 const canSeeSalary = () => {
@@ -122,6 +124,10 @@ function checkManager(managerId: string | null | undefined, selfId: string | nul
   if (!rows.some((r) => r.id === managerId)) throw badReference('managerId', 'gestor não encontrado');
 }
 
+/** Acesso ao portal por colaborador (mock): sem linha = sem acesso. */
+const accessRows = new Map<string, EmployeeAccess>();
+const accessOf = (id: string): EmployeeAccess => accessRows.get(id) ?? { status: 'sem_acesso', email: null, expiresAt: null };
+
 export const mockEmployeesApi: EmployeesApi = {
   list: async (q) => {
     await delay();
@@ -174,6 +180,33 @@ export const mockEmployeesApi: EmployeesApi = {
     if (body.birthDate !== undefined) r.birthDate = body.birthDate;
     if (body.managerId !== undefined) r.managerId = body.managerId;
     return clone(toEmployee(r));
+  },
+  access: async (id) => {
+    await delay();
+    find(id);
+    return clone(accessOf(id));
+  },
+  inviteAccess: async (id, email) => {
+    await delay(300);
+    const r = find(id);
+    if (r.terminationDate !== null) throw mockFail(409, 'COLABORADOR_DESLIGADO', 'O colaborador já está desligado');
+    const current = accessOf(id);
+    if (current.status === 'ativo' || current.status === 'inativo') throw mockFail(409, 'COLABORADOR_COM_ACESSO', 'O colaborador já tem acesso ao portal');
+    const access = { status: 'convite_pendente' as const, email: email.trim().toLowerCase(), expiresAt: '2026-11-24T13:00:00.000Z' };
+    accessRows.set(id, access);
+    return { access: clone(access), token: 'convite-do-colaborador-' + id };
+  },
+  revokeAccessInvite: async (id) => {
+    await delay();
+    find(id);
+    if (accessOf(id).status === 'convite_pendente') accessRows.delete(id);
+    return clone(accessOf(id));
+  },
+  resetPin: async (id) => {
+    await delay();
+    const r = find(id);
+    if (r.terminationDate !== null) throw mockFail(409, 'COLABORADOR_DESLIGADO', 'O colaborador já está desligado');
+    return { pin: '715264', pinSetAt: '2026-11-21T13:00:00.000Z' };
   },
   terminate: async (id, body) => {
     await delay();

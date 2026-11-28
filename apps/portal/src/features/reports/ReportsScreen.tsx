@@ -29,11 +29,11 @@ const FORMATS = [
 ];
 
 export function ReportsScreen() {
-  const { me, establishment } = useSession();
+  const { me } = useSession();
   const [selected, setSelected] = useState<ReportType | null>(null);
 
   if (!can(me.role, 'nav.reports')) {
-    return <PageHeader title={COPY.title}><ForbiddenState screen={COPY.title} establishment={establishment.name} /></PageHeader>;
+    return <PageHeader title={COPY.title}><ForbiddenState screen={COPY.title} /></PageHeader>;
   }
   return (
     <PageHeader title={COPY.title} subtitle={COPY.subtitle}>

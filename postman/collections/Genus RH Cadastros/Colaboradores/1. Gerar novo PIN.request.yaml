@@ -1,0 +1,15 @@
+$kind: http-request
+name: 1. Gerar novo PIN
+description: "POST /portal/employees/:id/pin/reset. Gera um PIN novo para quem esqueceu o seu; o anterior deixa de valer na hora. Responde 200 com `{ pin, pinSetAt }`, com `Cache-Control: no-store`; o PIN sai só aqui e o banco guarda só o hash. Erros: `COLABORADOR_DESLIGADO` (409), 404 fora do escopo. Quem pode: rh e admin."
+url: "{{portalUrl}}/portal/employees/{{employeeId}}/pin/reset"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Sem cache', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));
+      const d = pm.response.json().data;
+      pm.test('PIN de 6 dígitos', () => pm.expect(d.pin).to.match(/^[0-9]{6}$/));
+      pm.test('Só PIN e data', () => pm.expect(Object.keys(d).sort()).to.eql(['pin', 'pinSetAt']));
+    language: text/javascript
+order: 1000

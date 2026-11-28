@@ -1,0 +1,13 @@
+$kind: http-request
+name: 2. Situação do acesso ao portal
+description: "GET /portal/employees/:id/access. `{ status, email, expiresAt }`; status `sem_acesso`, `convite_pendente`, `ativo` ou `inativo`. Quem pode: rh e admin (404 fora do escopo)."
+url: "{{portalUrl}}/portal/employees/{{employeeId}}/access"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const d = pm.response.json().data;
+      pm.test('Situação conhecida', () => pm.expect(['sem_acesso', 'convite_pendente', 'ativo', 'inativo']).to.include(d.status));
+    language: text/javascript
+order: 2000

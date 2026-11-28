@@ -82,15 +82,15 @@ describe('Escalas: lista e detalhe', () => {
     expect(screen.queryByText('Plantão livre')).toBeNull();
   });
 
-  it('permissão: só o rh edita; admin lê; gestor vê 403 da tela', async () => {
+  it('permissão: rh e admin editam; gestor vê 403 da tela', async () => {
     const rh = setup('rh');
     expect(await screen.findByRole('button', { name: 'Nova escala' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Atribuir escala' })).toBeInTheDocument();
     rh.unmount();
     const admin = setup('admin');
     await screen.findByText('Campo 6x1 · 44 h');
-    expect(screen.queryByRole('button', { name: 'Nova escala' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Atribuir escala' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Nova escala' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Atribuir escala' })).toBeInTheDocument();
     admin.unmount();
     const gestor = setup('gestor');
     expect(await screen.findByText('Sem permissão para esta tela')).toBeInTheDocument();

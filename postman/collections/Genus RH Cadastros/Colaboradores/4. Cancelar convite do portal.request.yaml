@@ -1,0 +1,12 @@
+$kind: http-request
+name: 4. Cancelar convite do portal
+description: "POST /portal/employees/:id/access-invite/revoke. Cancela o convite pendente (se houver) e devolve a situação do acesso. Quem pode: rh e admin."
+url: "{{portalUrl}}/portal/employees/{{employeeId}}/access-invite/revoke"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      pm.test('Sem convite pendente', () => pm.expect(pm.response.json().data.status).to.not.eql('convite_pendente'));
+    language: text/javascript
+order: 4000

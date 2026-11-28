@@ -33,6 +33,10 @@ const RULES = {
   'employee.create': ['rh', 'admin'],
   'employee.edit': ['rh', 'admin'],
   'employee.terminate': ['rh', 'admin'],
+  /** PIN novo para quem esqueceu (employees/routes.ts). */
+  'employee.resetPin': ['rh', 'admin'],
+  /** Convite de acesso do colaborador ao portal /me (invites/routes.ts). */
+  'employee.portalAccess': ['rh', 'admin'],
   'employee.viewFullCpf': ['rh', 'admin'],
   /** [A CONFIRMAR] back: rh e admin (SALARY_ROLES); security-lgpd.md §1 diz "só RH". */
   'employee.viewSalary': ['rh', 'admin'],
@@ -45,7 +49,7 @@ const RULES = {
 
   // Escalas (schedules/routes.ts)
   'schedule.view': ['rh', 'admin'],
-  'schedule.edit': ['rh'],
+  'schedule.edit': ['rh', 'admin'],
 
   // Apuração (timesheets/routes.ts)
   'timesheet.view': ['rh', 'admin', 'gestor'],
@@ -70,9 +74,9 @@ const RULES = {
 
   // Férias (vacations/routes.ts)
   'vacation.view': ['rh', 'admin', 'gestor'],
-  'vacation.create': ['rh'],
-  'vacation.decide': ['rh', 'gestor'],
-  'vacation.cancel': ['rh'],
+  'vacation.create': ['rh', 'admin'],
+  'vacation.decide': ['rh', 'admin', 'gestor'],
+  'vacation.cancel': ['rh', 'admin'],
 
   // Fechamento (closing/routes.ts)
   'closing.view': ['rh', 'admin', 'contador'],

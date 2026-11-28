@@ -115,7 +115,7 @@ describe('Férias: permissões', () => {
     expect(screen.getByRole('button', { name: 'Exportar calendário' })).toBeDisabled();
   });
 
-  it('gestor decide mas não lança; admin só consulta', async () => {
+  it('gestor decide mas não lança; admin lança e decide', async () => {
     const view = setup('gestor');
     await screen.findByRole('table', { name: /Calendário/ });
     expect(screen.queryByRole('button', { name: 'Lançar férias' })).toBeNull();
@@ -123,8 +123,8 @@ describe('Férias: permissões', () => {
     view.unmount();
     setup('admin');
     await screen.findByRole('table', { name: /Calendário/ });
-    expect(screen.queryByRole('button', { name: 'Lançar férias' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Aprovar férias/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lançar férias' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Aprovar férias de Daniela Costa/ })).toBeInTheDocument();
   });
 });
 

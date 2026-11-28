@@ -3,7 +3,7 @@
  *
  * Perfis por rota (04 §1.4, §7.1):
  *   leitura: rh, admin, contador (CPF mascarado, sem salário), gestor (só a equipe, se ligado);
- *   cadastrar, alterar e desligar: rh e admin;
+ *   cadastrar, alterar, desligar e gerar PIN novo: rh e admin;
  *   vínculos (têm salário): leitura rh e admin, escrita só rh.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -19,6 +19,7 @@ import {
   employeeListResponse,
   employeeResponse,
   listEmployeesQuery,
+  resetPinResponse,
   terminateEmployeeBody,
   updateAssignmentBody,
   updateEmployeeBody,
@@ -62,6 +63,15 @@ export const employeeRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, dep
     '/employees/:id/terminate',
     { preHandler: [writers], schema: { tags, summary: 'Desliga o colaborador (data e motivo)', params: idParams, body: terminateEmployeeBody, response: { 200: employeeResponse } } },
     async (req) => ({ data: await service.terminate(req.ctx!, req.params.id, req.body) }),
+  );
+
+  app.post(
+    '/employees/:id/pin/reset',
+    { preHandler: [writers], schema: { tags, summary: 'Gera um PIN novo (o anterior deixa de valer); o PIN sai só nesta resposta', params: idParams, response: { 200: resetPinResponse } } },
+    async (req, reply) => {
+      reply.header('cache-control', 'no-store');
+      return { data: await service.resetPin(req.ctx!, req.params.id) };
+    },
   );
 
   const assignmentReaders = app.authorize('rh', 'admin');

@@ -1,6 +1,6 @@
 /**
- * Escalas (G2), sob /portal. Leitura: rh e admin. Escrita: só rh.
- * Trocas de turno (RF12): leitura rh, admin e gestor (se ligado); escrita rh.
+ * Escalas (G2), sob /portal. Leitura e escrita: rh e admin.
+ * Trocas de turno (RF12): leitura rh, admin e gestor (se ligado); escrita rh e admin.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { idParams } from '../../http/schemas';
@@ -32,7 +32,7 @@ const tags = ['Escalas'];
 export const scheduleRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, deps) => {
   const service = new ScheduleService(deps);
   const readers = app.authorize('rh', 'admin');
-  const rh = app.authorize('rh');
+  const writers = app.authorize('rh', 'admin');
 
   app.get(
     '/schedules',
@@ -46,17 +46,17 @@ export const scheduleRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, dep
   );
   app.post(
     '/schedules',
-    { preHandler: [rh], schema: { tags, summary: 'Cadastra escala e dias (avisa se passar do limite semanal)', body: createScheduleBody, response: { 201: scheduleResponse } } },
+    { preHandler: [writers], schema: { tags, summary: 'Cadastra escala e dias (avisa se passar do limite semanal)', body: createScheduleBody, response: { 201: scheduleResponse } } },
     async (req, reply) => reply.code(201).send({ data: await service.create(req.ctx!, req.body) }),
   );
   app.patch(
     '/schedules/:id',
-    { preHandler: [rh], schema: { tags, params: idParams, body: updateScheduleBody, response: { 200: scheduleResponse } } },
+    { preHandler: [writers], schema: { tags, params: idParams, body: updateScheduleBody, response: { 200: scheduleResponse } } },
     async (req) => ({ data: await service.update(req.ctx!, req.params.id, req.body) }),
   );
   app.post(
     '/employees/:id/schedules',
-    { preHandler: [rh], schema: { tags, summary: 'Liga o colaborador a uma escala, com vigência', params: idParams, body: assignScheduleBody, response: { 201: employeeScheduleResponse } } },
+    { preHandler: [writers], schema: { tags, summary: 'Liga o colaborador a uma escala, com vigência', params: idParams, body: assignScheduleBody, response: { 201: employeeScheduleResponse } } },
     async (req, reply) => reply.code(201).send({ data: await service.assign(req.ctx!, req.params.id, req.body) }),
   );
   app.get(
@@ -66,12 +66,12 @@ export const scheduleRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, dep
   );
   app.patch(
     '/employees/:id/schedules/:assignmentId',
-    { preHandler: [rh], schema: { tags, summary: 'Encerra (ou reabre) o vínculo com a escala', params: assignmentParams, body: updateEmployeeScheduleBody, response: { 200: employeeScheduleResponse } } },
+    { preHandler: [writers], schema: { tags, summary: 'Encerra (ou reabre) o vínculo com a escala', params: assignmentParams, body: updateEmployeeScheduleBody, response: { 200: employeeScheduleResponse } } },
     async (req) => ({ data: await service.updateAssignment(req.ctx!, req.params.id, req.params.assignmentId, req.body.validTo) }),
   );
   app.post(
     '/employees/:id/schedules/switch',
-    { preHandler: [rh], schema: { tags, summary: 'Troca de escala a partir de uma data (encerra a vigente no dia anterior)', params: idParams, body: switchScheduleBody, response: { 201: employeeScheduleResponse } } },
+    { preHandler: [writers], schema: { tags, summary: 'Troca de escala a partir de uma data (encerra a vigente no dia anterior)', params: idParams, body: switchScheduleBody, response: { 201: employeeScheduleResponse } } },
     async (req, reply) => reply.code(201).send({ data: await service.switchSchedule(req.ctx!, req.params.id, req.body) }),
   );
   app.get(
@@ -88,12 +88,12 @@ export const scheduleRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, dep
   );
   app.post(
     '/employees/:id/schedule-overrides',
-    { preHandler: [rh], schema: { tags, summary: 'Troca pontual de turno ou folga num dia (muda só o previsto)', params: idParams, body: createOverrideBody, response: { 201: overrideResponse } } },
+    { preHandler: [writers], schema: { tags, summary: 'Troca pontual de turno ou folga num dia (muda só o previsto)', params: idParams, body: createOverrideBody, response: { 201: overrideResponse } } },
     async (req, reply) => reply.code(201).send({ data: await service.createOverride(req.ctx!, req.params.id, req.body) }),
   );
   app.delete(
     '/employees/:id/schedule-overrides/:overrideId',
-    { preHandler: [rh], schema: { tags, summary: 'Remove a troca de turno', params: overrideParams } },
+    { preHandler: [writers], schema: { tags, summary: 'Remove a troca de turno', params: overrideParams } },
     async (req, reply) => {
       await service.deleteOverride(req.ctx!, req.params.id, req.params.overrideId);
       return reply.code(204).send();

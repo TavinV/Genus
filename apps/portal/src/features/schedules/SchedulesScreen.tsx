@@ -85,7 +85,7 @@ export function SchedulesScreen() {
   if (!allowed) {
     return (
       <PageHeader title={COPY.title} subtitle={COPY.subtitle}>
-        <ForbiddenState screen="Escalas" establishment="este estabelecimento" />
+        <ForbiddenState screen="Escalas" />
       </PageHeader>
     );
   }

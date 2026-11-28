@@ -10,7 +10,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { BrandMark } from '@/components/shell/BrandMark';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/shadcn/sheet';
 import { useSignOut } from '@/lib/auth/gate';
-import { initials } from '@/lib/format';
+import { Avatar } from '@/components/ui/Avatar';
 import { useSession } from '@/lib/session';
 import { activeAdminNav, ADMIN_NAV, type AdminNavItem } from './nav';
 
@@ -42,7 +42,7 @@ function UserBlock({ onSignOut }: { onSignOut: () => void }) {
   return (
     <>
       <div className="flex items-center gap-2.5 px-1 py-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-[13px] font-bold text-brand" aria-hidden>{initials(me.name)}</div>
+        <Avatar name={me.name} className="text-[13px]" />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate font-semibold">{me.name}</span>
           <span className="text-xs text-muted">Operação Genus</span>

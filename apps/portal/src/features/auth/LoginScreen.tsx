@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { BrandMark } from '@/components/shell/BrandMark';
 import { Button } from '@/components/ui/Button';
-import { TextInput } from '@/components/ui/Fields';
+import { PasswordInput, TextInput } from '@/components/ui/Fields';
 import { PendingBackTooltip } from '@/components/ui/PendingBackTooltip';
 import { useZodForm } from '@/components/ui/useZodForm';
 import { useMocks } from '@/lib/api/mocks/runtime';
@@ -29,7 +29,7 @@ function PasswordStep({ busy, onSubmit }: { busy: boolean; onSubmit: (v: Passwor
   return (
     <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <TextInput label={COPY.email} type="email" autoComplete="username" inputMode="email" error={errors.email?.message} {...register('email')} />
-      <TextInput label={COPY.password} type="password" autoComplete="current-password" error={errors.password?.message} {...register('password')} />
+      <PasswordInput label={COPY.password} autoComplete="current-password" error={errors.password?.message} {...register('password')} />
       <div>
         <PendingBackTooltip>
           <Button variant="ghost" size="sm" disabled className="-ml-3">{COPY.forgot}</Button>

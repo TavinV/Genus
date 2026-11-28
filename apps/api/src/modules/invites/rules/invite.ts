@@ -1,8 +1,16 @@
 /** Regras puras do convite de usuário: papéis, prazo, tentativas, situação e e-mail mascarado. */
 
-/** O convite só cria estes papéis. Repetido no CHECK `ck_convites_usuario_papel`. */
+/** Papéis que o admin e o super_admin convidam por /invites. */
 export const INVITE_ROLES = ['admin', 'rh'] as const;
 export type InviteRole = (typeof INVITE_ROLES)[number];
+
+/** Tudo o que um convite cria: os acima e o acesso do colaborador (/employees/:id/access-invite). CHECK `ck_convites_usuario_papel`. */
+export const ALL_INVITE_ROLES = ['admin', 'rh', 'colaborador'] as const;
+export type AnyInviteRole = (typeof ALL_INVITE_ROLES)[number];
+
+/** Situação do acesso do colaborador ao portal. */
+export const EMPLOYEE_ACCESS_STATUSES = ['sem_acesso', 'convite_pendente', 'ativo', 'inativo'] as const;
+export type EmployeeAccessStatus = (typeof EMPLOYEE_ACCESS_STATUSES)[number];
 
 export const INVITE_STATUSES = ['pendente', 'aceito', 'revogado', 'expirado'] as const;
 export type InviteStatus = (typeof INVITE_STATUSES)[number];

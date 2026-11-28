@@ -31,12 +31,12 @@ import { settingsFormSchema } from './schemas';
 const TAB_VALUES = TABS.map((t) => t.value);
 
 export function SettingsScreen() {
-  const { me, establishment } = useSession();
+  const { me } = useSession();
   const [url, setUrl] = useUrlState(['aba'] as const);
   const tab = oneOf<SettingsTab>(url.aba, TAB_VALUES, 'estrutura');
 
   if (!can(me.role, 'nav.settings')) {
-    return <PageHeader title={COPY.title}><ForbiddenState screen={COPY.title} establishment={establishment.name} /></PageHeader>;
+    return <PageHeader title={COPY.title}><ForbiddenState screen={COPY.title} /></PageHeader>;
   }
   return (
     <PageHeader title={COPY.title} subtitle={COPY.subtitle}>

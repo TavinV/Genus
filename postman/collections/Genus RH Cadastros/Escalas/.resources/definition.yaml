@@ -1,3 +1,3 @@
 $kind: collection
-description: Ativar e desativar escala, trocar e encerrar o vínculo do colaborador, quem está na escala e trocas de turno (RF12). Escrita só rh.
+description: Ativar e desativar escala, trocar e encerrar o vínculo do colaborador, quem está na escala e trocas de turno (RF12). rh e admin escrevem.
 order: 2000

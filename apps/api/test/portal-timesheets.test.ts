@@ -82,14 +82,16 @@ describe('escalas', () => {
     expect(warnings.some((w) => w.code === 'folgas_abaixo_minimo' && w.ruleValidFrom === '2026-12-16')).toBe(true);
   });
 
-  it('validação: folga com horário e posição repetida → 400; admin não cadastra → 403', async () => {
+  it('validação: folga com horário e posição repetida → 400; admin cadastra; contador → 403', async () => {
     const bad = fiveByTwo(org.establishmentId);
     bad.days = [{ position: 1, startTime: '07:00', endTime: '16:00', breakStartTime: '11:00', breakEndTime: '12:00' }, { position: 1, startTime: '07:00', endTime: '16:00', breakStartTime: '11:00', breakEndTime: '12:00' }];
     expect((await h.call(rh, 'POST', '/portal/schedules', bad)).statusCode).toBe(400);
     const off = { ...fiveByTwo(org.establishmentId), days: [{ position: 0, isDayOff: true, startTime: '07:00', endTime: '16:00' }] };
     expect((await h.call(rh, 'POST', '/portal/schedules', off)).statusCode).toBe(400);
     const admin = (await h.loginAs(org, 'admin')).cookie;
-    expect((await h.call(admin, 'POST', '/portal/schedules', fiveByTwo(org.establishmentId))).statusCode).toBe(403);
+    expect((await h.call(admin, 'POST', '/portal/schedules', { ...fiveByTwo(org.establishmentId), name: 'Escala do admin' })).statusCode).toBe(201);
+    const accountant = (await h.loginAs(org, 'contador')).cookie;
+    expect((await h.call(accountant, 'POST', '/portal/schedules', fiveByTwo(org.establishmentId))).statusCode).toBe(403);
     expect((await h.call(admin, 'GET', `/portal/schedules/${scheduleId}`)).statusCode).toBe(200);
   });
 

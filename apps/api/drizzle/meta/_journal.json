@@ -155,6 +155,20 @@
       "when": 1795722854536,
       "tag": "0021_carga_feriados_nacionais",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795815520162,
+      "tag": "0022_convites_usuario_empresa",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795832697628,
+      "tag": "0023_convites_usuario_colaborador",
+      "breakpoints": true
     }
   ]
 }

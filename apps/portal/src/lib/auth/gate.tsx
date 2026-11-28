@@ -34,7 +34,7 @@ export function safeNext(next: string | null | undefined): string | null {
 export type GateArea = 'rh' | 'me' | 'admin';
 
 const AREA_RULE = { rh: 'rh.panel', me: 'employee.portal', admin: 'superAdmin.panel' } as const;
-const AREA_SCREEN = { rh: 'o painel de RH', me: 'o portal do colaborador', admin: 'o painel da operação Genus' } as const;
+const AREA_SCREEN = { rh: 'Painel de RH', me: 'Portal do colaborador', admin: 'Painel da operação Genus' } as const;
 
 /** Rota de ativação do 2FA do super_admin: a única do /admin que abre sem 2FA ativo (fica fora do AuthGate). */
 export const MFA_SETUP_PATH = '/admin/ativar-2fa';
@@ -88,7 +88,7 @@ export function AuthGate({ area, children }: { area: GateArea; children: ReactNo
   if (!allowed) {
     return (
       <div className="p-8">
-        <ForbiddenState screen={AREA_SCREEN[area]} establishment="esta conta" />
+        <ForbiddenState screen={AREA_SCREEN[area]} />
       </div>
     );
   }

@@ -83,7 +83,7 @@ export function TimeBankScreen() {
     [],
   );
 
-  if (!allowed) return <ForbiddenState screen="Banco de horas" establishment={establishment.name} />;
+  if (!allowed) return <ForbiddenState screen="Banco de horas" />;
 
   const compensatory = (
     <span title={COPY.compensatoryPending}>

@@ -20,12 +20,19 @@ interface Row extends Invite {
   attempts: number;
 }
 
+/** Razão social das empresas do mock (mesmos ids de mockEstablishments). */
+const MOCK_COMPANY_NAMES: Record<string, string> = {
+  '1': 'Agropecuária Santa Helena Ltda',
+  '2': 'Usina Boa Vista S.A.',
+  '3': 'Granja São José Avicultura Ltda',
+};
+
 /** A conta da sessão de mock (`tenantId` null) é a '1'. */
 const OWN_TENANT = '1';
 
 const seed = (): Row[] => [
   {
-    id: '1', tenantId: OWN_TENANT, name: 'Teresa Campos', email: 'teresa@exemplo.test', role: 'rh', status: 'pendente',
+    id: '1', tenantId: OWN_TENANT, name: 'Teresa Campos', email: 'teresa@exemplo.test', role: 'rh', companyId: null, companyName: null, status: 'pendente',
     createdAt: NOW, expiresAt: new Date(Date.parse(NOW) + TTL_MS).toISOString(), acceptedAt: null, token: 'convite-de-demonstracao', cpf: '52998224725', attempts: 0,
   },
 ];
@@ -36,7 +43,7 @@ export const resetMockInvites = () => {
 };
 
 const view = (r: Row): Invite => ({
-  id: r.id, name: r.name, email: r.email, role: r.role, status: r.status, expiresAt: r.expiresAt, createdAt: r.createdAt, acceptedAt: r.acceptedAt,
+  id: r.id, name: r.name, email: r.email, role: r.role, companyId: r.companyId, companyName: r.companyName, status: r.status, expiresAt: r.expiresAt, createdAt: r.createdAt, acceptedAt: r.acceptedAt,
 });
 
 const invalid = () => mockFail(404, 'CONVITE_INVALIDO', 'Convite inválido');
@@ -61,7 +68,9 @@ export const mockInvitesApi: InvitesApi = {
     if (rows.some((r) => r.email === email && r.status === 'aceito')) throw mockFail(409, 'EMAIL_IN_USE', 'E-mail já em uso');
     for (const r of rows) if (r.tenantId === owner && r.email === email && r.status === 'pendente') r.status = 'revogado';
     const row: Row = {
-      id: mockId(), tenantId: owner, name: input.name, email, role: input.role, status: 'pendente', createdAt: NOW,
+      id: mockId(), tenantId: owner, name: input.name, email, role: input.role,
+      companyId: input.companyId ?? null, companyName: input.companyId ? (MOCK_COMPANY_NAMES[input.companyId] ?? `Empresa ${input.companyId}`) : null,
+      status: 'pendente', createdAt: NOW,
       expiresAt: new Date(Date.parse(NOW) + TTL_MS).toISOString(), acceptedAt: null, token: randomToken(), cpf: input.cpf, attempts: 0,
     };
     rows.unshift(row);
@@ -78,7 +87,7 @@ export const mockInvitesApi: InvitesApi = {
     await delay();
     const r = usable(token);
     const [user = '', domain = ''] = r.email.split('@');
-    return { tenantName: 'Agropecuária Santa Helena', name: r.name, emailMasked: `${user.slice(0, 1)}***@${domain}`, role: r.role, expiresAt: r.expiresAt };
+    return { tenantName: 'Agropecuária Santa Helena', name: r.name, emailMasked: `${user.slice(0, 1)}***@${domain}`, role: r.role, companyName: r.companyName, expiresAt: r.expiresAt };
   },
   accept: async ({ token, cpf }) => {
     await delay(300);

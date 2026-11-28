@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller } from 'react-hook-form';
 import { BrandMark } from '@/components/shell/BrandMark';
 import { Button } from '@/components/ui/Button';
-import { TextInput } from '@/components/ui/Fields';
+import { PasswordInput, TextInput } from '@/components/ui/Fields';
 import { KeyValueList } from '@/components/ui/KeyValueList';
 import { notify } from '@/components/ui/notify';
 import { LoadingState } from '@/components/ui/States';
@@ -138,6 +138,7 @@ function AcceptForm({ preview, token, onInvalid, onAccepted }: {
         <KeyValueList
           items={[
             { label: c.tenant, value: preview.tenantName },
+            ...(preview.companyName ? [{ label: c.company, value: preview.companyName }] : []),
             { label: c.name, value: preview.name },
             { label: c.email, value: preview.emailMasked },
             { label: c.role, value: ROLE_LABEL[preview.role] },
@@ -165,8 +166,8 @@ function AcceptForm({ preview, token, onInvalid, onAccepted }: {
             />
           )}
         />
-        <TextInput label={c.password} required type="password" autoComplete="new-password" hint={c.passwordHint} error={errors.password?.message} {...register('password')} />
-        <TextInput label={c.confirmation} required type="password" autoComplete="new-password" error={errors.confirmation?.message} {...register('confirmation')} />
+        <PasswordInput label={c.password} required autoComplete="new-password" hint={c.passwordHint} error={errors.password?.message} {...register('password')} />
+        <PasswordInput label={c.confirmation} required autoComplete="new-password" error={errors.confirmation?.message} {...register('confirmation')} />
         <Button type="submit" loading={isSubmitting} className="h-11 w-full">{c.submit}</Button>
       </form>
     </>

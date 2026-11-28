@@ -84,9 +84,9 @@ export const mockAuthApi: AuthApi = {
 };
 
 export const mockEstablishments: Establishment[] = [
-  { id: '1', name: 'Fazenda Santa Helena', subtitle: 'Agropecuária Santa Helena Ltda', isActive: true },
-  { id: '2', name: 'Usina Boa Vista', subtitle: 'Usina Boa Vista S.A.', isActive: true },
-  { id: '3', name: 'Granja São José', subtitle: 'Granja São José Avicultura Ltda', isActive: true },
+  { id: '1', name: 'Fazenda Santa Helena', subtitle: 'Agropecuária Santa Helena Ltda', companyId: '1', isActive: true },
+  { id: '2', name: 'Usina Boa Vista', subtitle: 'Usina Boa Vista S.A.', companyId: '2', isActive: true },
+  { id: '3', name: 'Granja São José', subtitle: 'Granja São José Avicultura Ltda', companyId: '3', isActive: true },
 ];
 
 export const DEPARTMENTS = ['Colheita', 'Ordenha', 'Agroindústria', 'Manutenção', 'Administrativo', 'Armazém'];

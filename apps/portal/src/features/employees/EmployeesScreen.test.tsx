@@ -22,6 +22,10 @@ function setup(role: R = 'rh', overrides: Partial<typeof mockEmployeesApi> = {},
     create: vi.fn(overrides.create ?? mockEmployeesApi.create),
     update: vi.fn(overrides.update ?? mockEmployeesApi.update),
     terminate: vi.fn(overrides.terminate ?? mockEmployeesApi.terminate),
+    resetPin: vi.fn(overrides.resetPin ?? mockEmployeesApi.resetPin),
+    access: vi.fn(overrides.access ?? mockEmployeesApi.access),
+    inviteAccess: vi.fn(overrides.inviteAccess ?? mockEmployeesApi.inviteAccess),
+    revokeAccessInvite: vi.fn(overrides.revokeAccessInvite ?? mockEmployeesApi.revokeAccessInvite),
     assignments: vi.fn(overrides.assignments ?? mockEmployeesApi.assignments),
     createAssignment: vi.fn(overrides.createAssignment ?? mockEmployeesApi.createAssignment),
     updateAssignment: vi.fn(overrides.updateAssignment ?? mockEmployeesApi.updateAssignment),
@@ -282,5 +286,56 @@ describe('mock de employees', () => {
     expect((await mockEmployeesApi.assignments('101'))[0]?.baseSalary).toBe('2500.00');
     asSession('gestor');
     expect((await mockEmployeesApi.assignments('101'))[0]).not.toHaveProperty('baseSalary');
+  });
+});
+
+describe('Colaboradores: PIN novo', () => {
+  it('admin gera um PIN novo depois de confirmar; o PIN aparece uma vez', async () => {
+    const { resetPin } = setup('admin');
+    await openMenu('Antônio Carlos Ferreira', 'Gerar novo PIN');
+    const confirm = await screen.findByRole('alertdialog', { name: /Gerar novo PIN para Antônio Carlos Ferreira/ });
+    expect(resetPin).not.toHaveBeenCalled();
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Gerar novo PIN' }));
+    const shown = await screen.findByRole('alertdialog', { name: 'Novo PIN' });
+    expect(within(shown).getByLabelText('Valor do PIN')).toHaveTextContent('715264');
+    expect(resetPin).toHaveBeenCalledTimes(1);
+    await userEvent.click(within(shown).getByLabelText('Anotei o PIN'));
+    await userEvent.click(within(shown).getByRole('button', { name: 'Concluir' }));
+    await waitFor(() => expect(screen.queryByText('715264')).toBeNull());
+  });
+
+  it('contador não vê a opção', async () => {
+    setup('contador');
+    expect(await screen.findByText('Antônio Carlos Ferreira')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Gerar novo PIN' })).toBeNull();
+  });
+});
+
+describe('Colaboradores: acesso ao portal', () => {
+  it('rh convida pelo e-mail e recebe o link uma vez; o colaborador confirma o próprio CPF', async () => {
+    const { inviteAccess } = setup('rh');
+    await openMenu('Antônio Carlos Ferreira', 'Acesso ao portal');
+    const dialog = await screen.findByRole('dialog', { name: /Acesso ao portal: Antônio Carlos Ferreira/ });
+    expect(await within(dialog).findByText('Sem acesso')).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText(/^E-mail do colaborador/), 'antonio@exemplo.test');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Criar convite' }));
+    const link = await screen.findByTestId('invite-link');
+    expect(link).toHaveTextContent('/convite#convite-do-colaborador-');
+    expect(inviteAccess).toHaveBeenCalledWith(expect.any(String), 'antonio@exemplo.test');
+    expect(screen.getByText(/confirma o próprio CPF/)).toBeInTheDocument();
+  });
+
+  it('e-mail inválido não chama a api; contador não vê a opção', async () => {
+    const { inviteAccess, unmount } = setup('admin');
+    await openMenu('Antônio Carlos Ferreira', 'Acesso ao portal');
+    const dialog = await screen.findByRole('dialog', { name: /Acesso ao portal/ });
+    await userEvent.type(await within(dialog).findByLabelText(/^E-mail do colaborador/), 'sem-arroba');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Criar convite' }));
+    expect(await within(dialog).findByText('Informe um e-mail válido.')).toBeInTheDocument();
+    expect(inviteAccess).not.toHaveBeenCalled();
+    unmount();
+    setup('contador');
+    expect(await screen.findByText('Antônio Carlos Ferreira')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Acesso ao portal' })).toBeNull();
   });
 });

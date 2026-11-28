@@ -1,0 +1,24 @@
+$kind: http-request
+name: 3. Convidar colaborador para o portal
+description: "POST /portal/employees/:id/access-invite com `{ email }`. Nome e CPF saem do cadastro. Responde 201 com `{ access, token }`; o token sai só aqui (link `<origem>/convite#<token>`), com `Cache-Control: no-store`. Um convite novo cancela o pendente. Erros: `COLABORADOR_COM_ACESSO` (409), `COLABORADOR_DESLIGADO` (409), `EMAIL_IN_USE` (409). Quem pode: rh e admin."
+url: "{{portalUrl}}/portal/employees/{{employeeId}}/access-invite"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    { "email": "{{employeeAccessEmail}}" }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.collectionVariables.set('employeeAccessEmail', 'colaborador.' + Date.now() + '@example.com');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201', () => pm.response.to.have.status(201));
+      const d = pm.response.json().data;
+      pm.test('Convite pendente', () => pm.expect(d.access.status).to.eql('convite_pendente'));
+      pm.test('Token vem uma vez', () => pm.expect(d.token).to.match(/^[A-Za-z0-9_-]{43}$/));
+    language: text/javascript
+order: 3000

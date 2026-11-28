@@ -115,7 +115,7 @@ export function AdjustmentsScreen() {
   if (!allowed) {
     return (
       <PageHeader title={COPY.title} subtitle={COPY.subtitle}>
-        <ForbiddenState screen="Ajustes" establishment="este estabelecimento" />
+        <ForbiddenState screen="Ajustes" />
       </PageHeader>
     );
   }

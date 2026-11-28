@@ -1,0 +1,3 @@
+$kind: collection
+description: Ações sobre o colaborador já cadastrado, de rh e admin. PIN novo (esqueceu o anterior) e acesso ao portal (/me) por convite.
+order: 4000

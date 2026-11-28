@@ -8,8 +8,13 @@ import { tenantOf } from '../../http/access';
 import { HttpError } from '../../plugins/error-handler';
 import type { RequestContext } from '../../plugins/request-context';
 import type { PortalDeps } from '../portal/deps';
+import { idParams } from '../../http/schemas';
+import { findEmployeeInScope } from '../employees/lookup';
 import { publicInviteRoutes } from './public-routes';
-import { createdInviteResponse, createInviteBody, inviteIdParams, inviteListResponse, inviteResponse } from './schemas';
+import {
+  createdEmployeeAccessResponse, createdInviteResponse, createEmployeeAccessBody, createInviteBody, employeeAccessResponse,
+  inviteIdParams, inviteListResponse, inviteResponse,
+} from './schemas';
 import { InviteService, type InviteActor } from './service';
 
 const tags = ['Convites'];
@@ -45,6 +50,44 @@ export const inviteRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, deps)
     '/invites/:inviteId/revoke',
     { preHandler: [admin], schema: { tags, summary: 'Revoga um convite pendente', params: inviteIdParams, response: { 200: inviteResponse } } },
     async (req) => ({ data: await service.revoke(actorOf(req.ctx!), req.params.inviteId) }),
+  );
+
+  // Acesso do colaborador ao portal (/me): rh e admin, dentro do próprio escopo (fora dele, 404).
+  const employeeManagers = app.authorize('rh', 'admin');
+  const employeeActor = async (ctx: RequestContext, employeeId: number): Promise<InviteActor> => {
+    await findEmployeeInScope(deps.db, ctx, employeeId);
+    return { tenantId: tenantOf(ctx), userId: ctx.userId };
+  };
+
+  app.get(
+    '/employees/:id/access',
+    { preHandler: [employeeManagers], schema: { tags, summary: 'Situação do acesso do colaborador ao portal', params: idParams, response: { 200: employeeAccessResponse } } },
+    async (req) => ({ data: await service.employeeAccess((await employeeActor(req.ctx!, req.params.id)).tenantId, req.params.id) }),
+  );
+
+  app.post(
+    '/employees/:id/access-invite',
+    {
+      preHandler: [employeeManagers],
+      schema: {
+        tags,
+        summary: 'Convida o colaborador para o portal (nome e CPF do cadastro); o token do link sai só nesta resposta',
+        params: idParams,
+        body: createEmployeeAccessBody,
+        response: { 201: createdEmployeeAccessResponse },
+      },
+    },
+    async (req, reply) => {
+      reply.header('cache-control', 'no-store');
+      const actor = await employeeActor(req.ctx!, req.params.id);
+      return reply.code(201).send({ data: await service.createForEmployee(actor, req.params.id, req.body.email) });
+    },
+  );
+
+  app.post(
+    '/employees/:id/access-invite/revoke',
+    { preHandler: [employeeManagers], schema: { tags, summary: 'Cancela o convite de acesso pendente do colaborador', params: idParams, response: { 200: employeeAccessResponse } } },
+    async (req) => ({ data: await service.revokeForEmployee(await employeeActor(req.ctx!, req.params.id), req.params.id) }),
   );
 
   await app.register(publicInviteRoutes, { ...deps, service });

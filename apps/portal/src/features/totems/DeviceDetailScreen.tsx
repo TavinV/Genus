@@ -36,7 +36,7 @@ const TABS = ['resumo', 'calibracao', 'atividade'] as const;
 type Tab = (typeof TABS)[number];
 
 export function DeviceDetailScreen({ rawId }: { rawId: string }) {
-  const { me, establishment, establishments } = useSession();
+  const { me, establishments } = useSession();
   const router = useRouter();
   const allowed = can(me.role, 'device.manage');
   const id = parseRouteId(rawId);
@@ -49,7 +49,7 @@ export function DeviceDetailScreen({ rawId }: { rawId: string }) {
   if (!allowed) {
     return (
       <PageHeader title={COPY.title} subtitle={COPY.subtitle}>
-        <ForbiddenState screen="Totens" establishment={establishment.name} />
+        <ForbiddenState screen="Totens" />
       </PageHeader>
     );
   }

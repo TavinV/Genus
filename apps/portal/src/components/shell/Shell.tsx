@@ -12,7 +12,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/shadcn/sheet';
 import { useSignOut } from '@/lib/auth/gate';
 import { can, ROLE_LABEL } from '@/lib/auth/permissions';
-import { initials, plural } from '@/lib/format';
+import { Avatar } from '@/components/ui/Avatar';
+import { plural } from '@/lib/format';
 import { useApiQuery } from '@/lib/query/hooks';
 import { useSession } from '@/lib/session';
 import { BrandMark } from './BrandMark';
@@ -89,7 +90,7 @@ function UserBlock({ expanded, onSignOut }: { expanded: boolean; onSignOut: () =
   return (
     <>
       <div className={`flex items-center gap-2.5 py-2 ${expanded ? 'px-1' : 'justify-center'}`}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-[13px] font-bold text-brand" aria-hidden>{initials(me.name)}</div>
+        <Avatar name={me.name} className="text-[13px]" />
         {expanded && (
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate font-semibold">{me.name}</span>

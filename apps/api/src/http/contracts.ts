@@ -56,6 +56,8 @@ export const PORTAL_ERROR_CODES = [
   /** Convite de admin/rh por link, com confirmação de CPF. */
   'CPF_NAO_CONFERE',
   'CONVITE_INVALIDO',
+  'EMPRESA_SEM_ESTABELECIMENTO',
+  'COLABORADOR_COM_ACESSO',
   /** Setores, cargos e centros de custo (modules/org-units). */
   'NOME_DUPLICADO',
   'CODIGO_DUPLICADO',

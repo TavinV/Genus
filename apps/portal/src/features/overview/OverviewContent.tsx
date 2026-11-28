@@ -34,7 +34,7 @@ export function OverviewContent() {
   );
 
   const forbidden = (
-    <PageHeader title={COPY.title}><ForbiddenState screen={COPY.title} establishment={establishment.name} /></PageHeader>
+    <PageHeader title={COPY.title}><ForbiddenState screen={COPY.title} /></PageHeader>
   );
   if (!allowed) return forbidden;
 

@@ -47,13 +47,18 @@ export function ErrorState({ what, code, onRetry }: { what: string; code?: strin
   );
 }
 
-export function ForbiddenState({ screen, establishment, onBack }: { screen: string; establishment: string; onBack?: () => void }) {
+/**
+ * Sem permissão (403). `screen` é o nome da tela ou área, como aparece no menu ("Escalas"); vai entre
+ * aspas para não brigar com a preposição ("a os", "em este"). A causa pode ser o perfil ou o escopo de
+ * estabelecimentos: o texto cobre as duas sem expor detalhe técnico.
+ */
+export function ForbiddenState({ screen, onBack }: { screen: string; onBack?: () => void }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-card border border-line px-6 py-14 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full border border-line bg-surface"><LockKey size={28} className="text-ink" aria-hidden /></div>
-      <div className="text-xs font-semibold tracking-[0.04em] text-muted">ERRO 403</div>
+      <div className="text-xs font-semibold tracking-[0.04em] text-muted">ACESSO RESTRITO</div>
       <div className="text-xl font-bold tracking-[-0.01em]">Sem permissão para esta tela</div>
-      <div className="max-w-[480px] text-muted text-pretty">Seu usuário não tem acesso a {screen} em {establishment}. Peça ao administrador da conta para incluir este estabelecimento no seu escopo.</div>
+      <div className="max-w-[480px] text-muted text-pretty">Seu perfil de acesso não permite abrir “{screen}”. Se você precisa dela no seu trabalho, peça ao administrador da sua empresa para revisar o seu acesso.</div>
       {onBack && <Button variant="secondary" className="mt-2" onClick={onBack}>Voltar para a visão geral</Button>}
     </div>
   );

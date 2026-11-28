@@ -4,6 +4,7 @@ import { ArrowLeft, PencilSimple, WarningCircle } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { PageHeader } from '@/components/shell/PageHeader';
+import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -21,7 +22,7 @@ import { ROLE_LABEL } from '@/lib/labels';
 import { MODULE_USAGE_LABEL, WINDOW_LABEL } from '@/lib/labels/super-admin';
 import { InvitesSection } from '@/features/invites/InvitesSection';
 import { COPY } from './copy';
-import { useReactivateTenant, useSuspendTenant, useTenant, useTenantStats, useUpdateTenant } from './hooks';
+import { useCompanies, useReactivateTenant, useSuspendTenant, useTenant, useTenantStats, useUpdateTenant } from './hooks';
 import { OrganizationSection } from './OrganizationSection';
 import { BarChart, formatPercent, friendlyError, StatCard, WindowSelect } from './parts';
 import { tenantNameSchema, type TenantNameValues } from './schemas';
@@ -104,6 +105,13 @@ function UsageSection({ id }: { id: string }) {
   );
 }
 
+/** Convites da conta, com as empresas ativas para o campo "Acesso". */
+function TenantInvites({ tenantId }: { tenantId: string }) {
+  const companies = useCompanies(tenantId);
+  const options = (companies.data ?? []).filter((co) => co.isActive && co.establishments.length > 0).map((co) => ({ id: co.id, name: co.legalName }));
+  return <InvitesSection tenantId={tenantId} companies={options} />;
+}
+
 function Body({ tenant }: { tenant: TenantDetail }) {
   const suspend = useSuspendTenant();
   const reactivate = useReactivateTenant();
@@ -171,7 +179,7 @@ function Body({ tenant }: { tenant: TenantDetail }) {
             <tbody>
               {tenant.admins.map((a) => (
                 <tr key={a.id} className="border-b border-line last:border-0">
-                  <td className="py-2 pr-4 font-semibold">{a.name}</td>
+                  <td className="py-2 pr-4 font-semibold"><span className="flex items-center gap-2.5"><Avatar name={a.name} size="sm" />{a.name}</span></td>
                   <td className="py-2 pr-4">{a.email}</td>
                   <td className="py-2 pr-4">{(ROLE_LABEL as Record<string, string>)[a.role as Role] ?? a.role}</td>
                   <td className="py-2 pr-4"><StatusBadge label={a.isActive ? d.active : d.inactive} tone={a.isActive ? 'good' : 'neutral'} /></td>
@@ -183,7 +191,7 @@ function Body({ tenant }: { tenant: TenantDetail }) {
         </div>
       </Card>
 
-      <InvitesSection tenantId={tenant.id} />
+      <TenantInvites tenantId={tenant.id} />
 
       <UsageSection id={tenant.id} />
 

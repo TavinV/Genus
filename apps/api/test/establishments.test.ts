@@ -28,8 +28,8 @@ describe('GET /portal/establishments', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
         data: [
-          { id: org.otherEstablishmentId, name: 'Filial', subtitle: 'Fazenda Fictícia Ltda', isActive: true },
-          { id: org.establishmentId, name: 'Matriz', subtitle: 'Fazenda Fictícia Ltda', isActive: true },
+          { id: org.otherEstablishmentId, name: 'Filial', subtitle: 'Fazenda Fictícia Ltda', companyId: org.companyId, isActive: true },
+          { id: org.establishmentId, name: 'Matriz', subtitle: 'Fazenda Fictícia Ltda', companyId: org.companyId, isActive: true },
         ],
       });
     }

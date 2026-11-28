@@ -1,6 +1,6 @@
 $kind: http-request
 name: 1. Criar convite
-description: "POST /portal/invites com `{ name, email, role, cpf }`. Responde 201 com `{ invite, token }`; o token sai só aqui. Erros: `CPF_INVALIDO` (400), `EMAIL_IN_USE` (409). Quem pode: admin."
+description: "POST /portal/invites com `{ name, email, role, cpf, companyId? }` (`companyId` restringe o usuário aos estabelecimentos da empresa; ausente = conta inteira). Responde 201 com `{ invite, token }`; o token sai só aqui. Erros: `CPF_INVALIDO` (400), `EMAIL_IN_USE` (409). Quem pode: admin."
 url: "{{portalUrl}}/portal/invites"
 method: POST
 headers:
@@ -27,7 +27,7 @@ scripts:
     code: |-
       pm.test('Status 201', () => pm.response.to.have.status(201));
       const d = pm.response.json().data;
-      pm.test('Convite pendente', () => pm.expect(d.invite).to.include({ status: 'pendente', role: 'rh', acceptedAt: null }));
+      pm.test('Convite pendente', () => pm.expect(d.invite).to.include({ status: 'pendente', role: 'rh', acceptedAt: null, companyId: null, companyName: null }));
       pm.test('Token vem uma vez', () => pm.expect(d.token).to.match(/^[A-Za-z0-9_-]{43}$/));
       pm.collectionVariables.set('inviteId', String(d.invite.id));
       pm.collectionVariables.set('inviteToken', d.token);

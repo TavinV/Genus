@@ -60,9 +60,9 @@ Quase tudo é **um módulo novo no `api-portal` (Fastify) + tabelas novas no ban
 
 **Escopo por estabelecimento (RNF02):** cada usuário só vê os estabelecimentos atribuídos a ele, em `usuarios_estabelecimentos` (`usuario_id`, `estabelecimento_id`, `UNIQUE (conta_id, usuario_id, estabelecimento_id)`). **Sem nenhuma linha, vale a conta inteira**, o que atende o RH de empresa pequena sem cadastro extra. O escopo de equipe do gestor (`gestor_id`) se soma a esse filtro. O `request-context` resolve os dois em `req.ctx` (`establishmentScope`, `teamScope`).
 
-**Login (implementado em 22/11/2026, `apps/api/src/modules/auth/`):** Better Auth com e-mail + senha, sessão em cookie para o portal e JWT curto (15 min) para cliente sem cookie. 2FA por TOTP, obrigatório para o `super_admin` (sem ele, a sessão só serve para ativar o 2FA) e opcional para os demais **[A CONFIRMAR]** se o RH também deve ser obrigado. Sem cadastro público: usuário `admin` ou `rh` nasce de um **convite** (abaixo) ou junto com a conta, no painel do super_admin (e, em dev, por `pnpm --filter @genus/api rh:create-user`). Rotas: `POST /auth/sign-in/email`, `POST /auth/two-factor/enable` e `/verify-totp`, `POST /auth/sign-out`, `GET /auth/token`, `GET /auth/jwks` e `GET /me`. Pendentes: envio do convite por e-mail e recuperação de senha (precisam de envio de e-mail), login do colaborador (§9, item 3), acesso excepcional do `super_admin` e auditoria de login. As tentativas de login já são gravadas em `rh.tentativas_login` (seção *Super Admin*); falta só a auditoria de login como evento de `auditoria`. `teamScope` ainda não entra no `req.ctx` (depende do §9, item 4).
+**Login (implementado em 22/11/2026, `apps/api/src/modules/auth/`):** Better Auth com e-mail + senha, sessão em cookie para o portal e JWT curto (15 min) para cliente sem cookie. 2FA por TOTP, obrigatório para o `super_admin` (sem ele, a sessão só serve para ativar o 2FA) e opcional para os demais **[A CONFIRMAR]** se o RH também deve ser obrigado. Sem cadastro público: usuário `admin` ou `rh` nasce de um **convite** (abaixo), o `colaborador` de um convite de acesso feito no cadastro dele, ou junto com a conta, no painel do super_admin (e, em dev, por `pnpm --filter @genus/api rh:create-user`). Rotas: `POST /auth/sign-in/email`, `POST /auth/two-factor/enable` e `/verify-totp`, `POST /auth/sign-out`, `GET /auth/token`, `GET /auth/jwks` e `GET /me`. Pendentes: envio do convite por e-mail e recuperação de senha (precisam de envio de e-mail), acesso excepcional do `super_admin` e auditoria de login. As tentativas de login já são gravadas em `rh.tentativas_login` (seção *Super Admin*); falta só a auditoria de login como evento de `auditoria`. `teamScope` ainda não entra no `req.ctx` (depende do §9, item 4).
 
-**Convites (implementado em 25/11/2026, `apps/api/src/modules/invites/`):** o `admin` (na própria conta) ou o `super_admin` (na conta da rota) informa nome, e-mail, papel (**só `admin` ou `rh`**) e CPF. A resposta traz o token do link uma única vez; o portal monta `<origem>/convite#<token>` e quem convidou o entrega (não há envio de e-mail). No aceite, a pessoa confirma o CPF e define a senha.
+**Convites (implementado em 25/11/2026, `apps/api/src/modules/invites/`):** o `admin` (na própria conta) ou o `super_admin` (na conta da rota) informa nome, e-mail, papel (**só `admin` ou `rh`**) e CPF. A resposta traz o token do link uma única vez; o portal monta `<origem>/convite#<token>` e quem convidou o entrega (não há envio de e-mail). No aceite, a pessoa confirma o CPF e define a senha. Desde 27/11/2026 o convite pode ser **de uma empresa** da conta (`companyId`, coluna `convites_usuario.empresa_id`, migration 0022): no aceite, o usuário recebe em `usuarios_estabelecimentos` os estabelecimentos que a empresa tem naquele momento. Empresa inativa, de outra conta ou sem estabelecimento → 400 `REFERENCIA_INVALIDA`. **[A CONFIRMAR]** estabelecimento criado depois do aceite não entra sozinho no escopo desse usuário. A senha mínima passou de 12 para 8 caracteres (`MIN_PASSWORD_LENGTH`).
 - Tabela `convites_usuario` (migrations 0016 e 0017): só o SHA-256 do token e o HMAC do CPF (chave derivada do `BETTER_AUTH_SECRET`; trocar o segredo invalida os convites pendentes). Um pendente por (conta, e-mail): o novo revoga o anterior. O banco recusa outro papel, a troca de conta, e-mail, papel ou hashes e qualquer mudança em convite aceito ou revogado.
 - Validade de 72 h e uso único. CPF errado: `CPF_NAO_CONFERE`; na 5ª falha o convite é revogado. Token inexistente, expirado, usado, revogado ou de conta suspensa: `CONVITE_INVALIDO`, sem diferenciar. As rotas públicas limitam falhas por IP (429; 10 em 15 min, em memória, por instância **[A CONFIRMAR]**: atrás do proxy do portal o IP visto pode ser o do proxy).
 - `admin` restrito a estabelecimentos (`usuarios_estabelecimentos`) não gerencia convites (403): o convidado enxergaria a conta inteira.
@@ -525,7 +525,7 @@ O painel do colaborador é uma **área responsiva do portal Next.js (`/me`), ins
 - **E1, comprovantes:** o PDF assinado de cada batida já é gerado pelo job existente; o painel só lista e serve por URL assinada (mínimo das últimas 48 h, `01` §3.5; todos ficam guardados).
 - **E3, upload:** direto para o S3 por URL assinada de PUT (câmera ou arquivo), depois `complete`. A API valida tipo e tamanho e dispara `analyze-certificate`. O colaborador **nunca** vê o CID nem a nota de risco: só o status e o motivo da decisão.
 - **E6, avisos** (`notificacoes`: `usuario_destino_id`, `tipo`, `canal` = `in_app`|`email`|`whatsapp`|`push`, `dados JSONB`, `status`, `enviado_em`, `lido_em`): eventos como pedido decidido, férias ou banco perto de vencer e espelho pronto para ciência. O worker `send-notification` escolhe o canal pela preferência. **WhatsApp tem custo por mensagem**: só avisos prioritários, com *opt-in*, como já avisado em `03` §4.
-- **Login do colaborador:** não está no quadro e é pré-requisito do painel (§8 e §9, item 3).
+- **Login do colaborador (implementado em 27/11/2026):** o `rh` ou o `admin` abre *Colaboradores → Acesso ao portal*, informa o e-mail e recebe o link do convite uma vez (`POST /employees/:id/access-invite`; situação em `GET /employees/:id/access`; cancelar em `POST /employees/:id/access-invite/revoke`). Nome e CPF vêm do cadastro: no aceite (`/convite`), o colaborador confirma o próprio CPF e cria a senha; o usuário nasce com papel `colaborador` e `colaborador_id` (migration 0023, `convites_usuario.colaborador_id`). Depois entra em `/login` com e-mail e senha, no celular ou no computador, e vai para `/me`. Um convite novo cancela o pendente; quem já tem usuário recebe 409 `COLABORADOR_COM_ACESSO`; desligado recebe 409 `COLABORADOR_DESLIGADO` (e o link pendente deixa de valer). Esses convites não aparecem em *Usuários*. Sem envio de e-mail nem WhatsApp: quem convida entrega o link.
 
 ---
 
@@ -570,19 +570,19 @@ Complementam `03` §8. Nomes em inglês (`database.md` §12). Todos idempotentes
 
 ### 7.1 Matriz (resumo)
 
-`rh` e `gestor` valem dentro dos estabelecimentos atribuídos (§1.4). `admin` configura e lê; do dia a dia, só cadastra, altera e desliga colaboradores. A coluna `gestor` só vale com o papel habilitado. O `super_admin` não entra nos módulos de RH (§1.4).
+`rh` e `gestor` valem dentro dos estabelecimentos atribuídos (§1.4). `admin` configura e lê; do dia a dia, cadastra, altera e desliga colaboradores, cria e atribui escalas e cuida das férias (desde 27/11/2026). A coluna `gestor` só vale com o papel habilitado. O `super_admin` não entra nos módulos de RH (§1.4).
 
 | Módulo | `admin` | `rh` | `gestor` (opcional, equipe) | `colaborador` | `contador` |
 |---|---|---|---|---|---|
-| G1 Cadastros | Empresa, estabelecimentos, usuários (convites de `admin` e `rh`) e permissões; cadastrar, alterar e desligar colaboradores; ler vínculos, com salário **[A CONFIRMAR]** | CRUD de colaboradores, vínculos, setores, cargos | Ler equipe, **sem salário** | – | – |
-| G2 Escalas | Regras de jornada da conta | CRUD | Ver calendário; criar troca pontual | Ver a própria | – |
+| G1 Cadastros | Empresa, estabelecimentos, usuários (convites de `admin` e `rh`, da conta inteira ou de uma empresa) e permissões; cadastrar, alterar e desligar colaboradores; ler vínculos, com salário **[A CONFIRMAR]** | CRUD de colaboradores, vínculos, setores, cargos | Ler equipe, **sem salário** | – | – |
+| G2 Escalas | Regras de jornada da conta; CRUD de escalas, atribuição e troca pontual | CRUD | Ver calendário; criar troca pontual | Ver a própria | – |
 | G3 Feriados | Regra de feriado trabalhado | CRUD | Ler | – | – |
 | G4 Apuração | Parâmetros (`configuracoes_empresa`) | Tudo, recalcular | Ler equipe | Própria | – |
 | G5 Ajustes | Ler | Decidir (inclusive a equipe), **revisar**, criar abono | **Decidir pedidos da equipe** | Criar e acompanhar os próprios | – |
 | G6 Análise de atestado | – | Tudo | **Nada** | – | – |
 | G7 Atestados e afastamentos | Vê "afastado", **sem CID e sem arquivo**; não decide | Decidir; ver CID | Vê "afastado", sem CID e sem arquivo | Envia; vê status e motivo | – |
 | G8 Banco de horas | Políticas | Tudo | Ler equipe | Próprio | – |
-| G9 Férias | Ler | Tudo, decidir (inclusive a equipe), confirmar | Decidir equipe (1ª instância) | Próprias | – |
+| G9 Férias | Abrir período, pedir, decidir e cancelar | Tudo, decidir (inclusive a equipe), confirmar | Decidir equipe (1ª instância) | Próprias | – |
 | G10 Fechamento | Ler | Fechar, **reabrir** | Ver espelho da equipe | Ver e dar ciência no próprio | – |
 | G11 Painel | Empresa | Empresa | Equipe | – | – |
 | G12 Relatórios | Ler | Tudo | Da equipe | – | Baixar exportação da folha (RF59) |
@@ -637,7 +637,7 @@ Painel do funcionário (E1–E4): cada tela entra assim que o módulo G correspo
 |---|---|---|
 | 1 | **OCR de atestado:** local ou nuvem | Local (§5) |
 | 2 | **Painel do funcionário:** PWA no portal ou app Expo | PWA no Next.js: reaproveita a API e dispensa publicação em loja para 25/11 |
-| 3 | **Login do colaborador:** CPF + senha, link por e-mail/WhatsApp ou código | Convite por e-mail + senha; WhatsApp só na fase 2 |
+| 3 | **Login do colaborador:** CPF + senha, link por e-mail/WhatsApp ou código | Convite por e-mail + senha; WhatsApp só na fase 2. **Feito em 27/11/2026** (link entregue por quem convida; envio automático pendente) |
 | 4 | **Escopo do gestor:** só diretos ou toda a hierarquia | Diretos no MVP |
 | 5 | **Base facial "existente":** onde moram os embeddings e como `colaboradores` se liga | **Decidido:** banco `app`, `embeddings_faciais` (um por colaborador; `person_id` = `colaborador_id`), DEK por empresa em `chaves_empresa` (ver RF04 em §1) |
 | 6 | **Fechamento:** por empresa ou por estabelecimento | Por empresa. **Decidido:** fechar e reabrir no MVP, AEJ na fase 2 (G10) |
@@ -721,13 +721,15 @@ Login reaproveitado: Better Auth da api do RH (cookie de sessão ou JWT curto), 
 |---|---|---|
 | Colaborador (G1) | `GET /employees`, `GET /employees/:id` | rh, admin, contador, gestor |
 | | `POST /employees`, `PATCH /employees/:id`, `POST /employees/:id/terminate` | rh, admin |
+| | `GET /employees/:id/access`, `POST /employees/:id/access-invite`, `/access-invite/revoke` (acesso do colaborador ao portal) | rh, admin |
+| | `POST /employees/:id/pin/reset` (PIN novo para quem esqueceu; sai uma vez, `no-store`, auditado sem o PIN; desligado → 409) | rh, admin |
 | | `GET /employees/:id/assignments` | rh, admin |
 | | `POST /employees/:id/assignments`, `PATCH /employees/:id/assignments/:assignmentId` | rh |
 | Convites | `GET`/`POST /invites`, `POST /invites/:inviteId/revoke` | admin (da conta inteira) |
 | | as mesmas sob `/super-admin/tenants/:tenantId/invites` | super_admin |
 | | `POST /public/invites/preview`, `POST /public/invites/accept` | público (o token vai no corpo) |
 | Escala (G2) | `GET /schedules`, `GET /schedules/:id`, `GET /employees/:id/schedules` | rh, admin |
-| | `POST /schedules`, `PATCH /schedules/:id`, `POST /employees/:id/schedules` | rh |
+| | `POST /schedules`, `PATCH /schedules/:id`, `POST /employees/:id/schedules`, troca de escala e trocas de turno | rh, admin |
 | Apuração (G4) | `POST /employees/:id/timesheets/recalculate` | rh |
 | | `GET /employees/:id/timesheets?from&to` | rh, admin, gestor |
 | Ajustes (G5) | `POST /employees/:id/adjustments` | rh |
@@ -736,9 +738,9 @@ Login reaproveitado: Better Auth da api do RH (cookie de sessão ou JWT curto), 
 | | `GET /employees/:id/absences` | rh, admin, gestor |
 | Atestados (G7) | `GET /certificates` | rh (com médico e arquivo), admin e gestor (sem diagnóstico) |
 | | `GET /certificates/:id/file` (auditado), `POST /certificates/:id/approve`, `/reject` | só rh |
-| Férias (G9) | `POST /employees/:id/vacation-periods`, `POST /employees/:id/vacations`, `POST /vacations/:id/cancel` | rh |
+| Férias (G9) | `POST /employees/:id/vacation-periods`, `POST /employees/:id/vacations`, `POST /vacations/:id/cancel` | rh, admin |
 | | `GET /employees/:id/vacation-periods` | rh, admin, gestor |
-| | `POST /vacations/:id/approve`, `/reject` | rh, gestor |
+| | `POST /vacations/:id/approve`, `/reject` | rh, admin, gestor |
 | Fechamento (G10) | `GET /closings` | rh, admin, contador |
 | | `POST /closings`, `/closings/:id/close`, `/reopen`, `/mirrors` | rh |
 | | `GET /closings/:id/mirrors/:employeeId` | rh, admin, contador, gestor |

@@ -5,7 +5,7 @@
 import { createHash } from 'node:crypto';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BASE_URL, fakeCpf, FixedClock, PortalHarness, type Org } from './support/portal';
+import { BASE_URL, cookiesOf, fakeCpf, FixedClock, PortalHarness, type Org } from './support/portal';
 
 const h = new PortalHarness();
 const NEW_PASSWORD = 'outra-senha-ficticia-456';
@@ -72,7 +72,7 @@ describe('criar e listar', () => {
     const list = await h.call(admin.cookie, 'GET', '/portal/invites');
     expect(list.statusCode).toBe(200);
     const listed = list.json().data.find((i: { id: number }) => i.id === id);
-    expect(Object.keys(listed).sort()).toEqual(['acceptedAt', 'createdAt', 'email', 'expiresAt', 'id', 'name', 'role', 'status']);
+    expect(Object.keys(listed).sort()).toEqual(['acceptedAt', 'companyId', 'companyName', 'createdAt', 'email', 'expiresAt', 'id', 'name', 'role', 'status']);
     expect(listed).toMatchObject({ status: 'pendente', role: 'rh', acceptedAt: null });
     expect(list.body).not.toContain(token);
     expect(list.body).not.toContain(body.cpf);
@@ -253,6 +253,117 @@ describe('aceite público', () => {
     const blocked = await publicCall('preview', { token: 'chute-final' }, same);
     expect(blocked.statusCode).toBe(429);
     expect(blocked.json().code).toBe('MUITAS_TENTATIVAS');
+  });
+});
+
+describe('convite de uma empresa', () => {
+  it('o usuário nasce restrito aos estabelecimentos da empresa; a lista e o preview mostram a empresa', async () => {
+    const { body, id, token } = await invite({ companyId: org.companyId });
+    const listed = (await h.call(admin.cookie, 'GET', '/portal/invites')).json().data.find((i: { id: number }) => i.id === id);
+    expect(listed).toMatchObject({ companyId: org.companyId, companyName: 'Fazenda Fictícia Ltda' });
+    expect((await publicCall('preview', { token })).json().data.companyName).toBe('Fazenda Fictícia Ltda');
+
+    expect((await accept(token, body.cpf)).statusCode).toBe(201);
+    const [user] = await usersWith(body.email);
+    expect(user).toBeDefined();
+    const scope = await h.client.query(
+      'SELECT ue.estabelecimento_id FROM rh.usuarios_estabelecimentos ue JOIN rh.usuarios u ON u.id = ue.usuario_id WHERE u.email = $1 ORDER BY 1',
+      [body.email],
+    );
+    expect(scope.rows.map((r) => Number(r.estabelecimento_id))).toEqual([org.establishmentId, org.otherEstablishmentId].sort((a, b) => a - b));
+  });
+
+  it('convite da conta inteira não restringe; empresa de outra conta ou sem estabelecimento → 400', async () => {
+    const whole = await invite();
+    expect((await accept(whole.token, whole.body.cpf)).statusCode).toBe(201);
+    const none = await h.client.query(
+      'SELECT 1 FROM rh.usuarios_estabelecimentos ue JOIN rh.usuarios u ON u.id = ue.usuario_id WHERE u.email = $1',
+      [whole.body.email],
+    );
+    expect(none.rows).toEqual([]);
+
+    const other = await h.createOrg();
+    const foreign = await h.call(admin.cookie, 'POST', '/portal/invites', newInvite({ companyId: other.companyId }));
+    expect(foreign.statusCode).toBe(400);
+    expect(foreign.json().code).toBe('REFERENCIA_INVALIDA');
+
+    const empty = await h.id("INSERT INTO rh.empresas (conta_id, razao_social, cnpj) VALUES ($1, 'Empresa Vazia Ltda', '11222333000181') RETURNING id", [org.tenantId]);
+    const noEst = await h.call(admin.cookie, 'POST', '/portal/invites', newInvite({ companyId: empty }));
+    expect(noEst.statusCode).toBe(400);
+    expect(noEst.json().code).toBe('REFERENCIA_INVALIDA');
+  });
+
+  it('o super_admin também convida para uma empresa da conta', async () => {
+    const res = await h.call(root.cookie, 'POST', `/portal/super-admin/tenants/${org.tenantId}/invites`, newInvite({ companyId: org.companyId }));
+    expect(res.statusCode, res.body).toBe(201);
+    expect(res.json().data.invite).toMatchObject({ companyId: org.companyId, companyName: 'Fazenda Fictícia Ltda' });
+  });
+});
+
+describe('acesso do colaborador ao portal', () => {
+  const accessUrl = (id: number) => `/portal/employees/${id}/access`;
+  const inviteUrl = (id: number) => `/portal/employees/${id}/access-invite`;
+
+  it('rh convida; o aceite confere o CPF do cadastro e o colaborador entra no /me', async () => {
+    const rh = await h.loginAs(org, 'rh');
+    const emp = await h.createEmployee(org);
+    expect((await h.call(rh.cookie, 'GET', accessUrl(emp.id))).json().data).toEqual({ status: 'sem_acesso', email: null, expiresAt: null });
+
+    const email = `colaborador${(n += 1)}@portal.teste.dev`;
+    const res = await h.call(rh.cookie, 'POST', inviteUrl(emp.id), { email, cpf: '00000000000', name: 'Outro Nome' });
+    expect(res.statusCode, res.body).toBe(201);
+    expect(res.headers['cache-control']).toBe('no-store');
+    const { token, access } = res.json().data;
+    expect(access).toMatchObject({ status: 'convite_pendente', email });
+    expect((await h.call(rh.cookie, 'GET', accessUrl(emp.id))).json().data.status).toBe('convite_pendente');
+    // Não aparece na lista de usuários do portal (admin e rh).
+    expect((await h.call(admin.cookie, 'GET', '/portal/invites')).json().data.some((i: { email: string }) => i.email === email)).toBe(false);
+
+    const preview = await publicCall('preview', { token });
+    expect(preview.json().data).toMatchObject({ role: 'colaborador', name: 'Pessoa Fictícia', companyName: null });
+    expect((await accept(token, fakeCpf())).json().code).toBe('CPF_NAO_CONFERE');
+    expect((await accept(token, emp.cpf)).statusCode).toBe(201);
+
+    const [user] = await usersWith(email);
+    expect(user).toMatchObject({ papel: 'colaborador' });
+    expect(Number(user.colaborador_id)).toBe(emp.id);
+    expect((await h.call(rh.cookie, 'GET', accessUrl(emp.id))).json().data).toMatchObject({ status: 'ativo', email });
+
+    const login = await h.app.inject({ method: 'POST', url: '/auth/sign-in/email', headers: { origin: BASE_URL }, payload: { email, password: NEW_PASSWORD } });
+    expect(login.statusCode).toBe(200);
+    const me = await h.call(cookiesOf(login), 'GET', '/me');
+    expect(me.json().data).toMatchObject({ role: 'colaborador', employeeId: emp.id });
+
+    const again = await h.call(rh.cookie, 'POST', inviteUrl(emp.id), { email: `outro${(n += 1)}@portal.teste.dev` });
+    expect(again.statusCode).toBe(409);
+    expect(again.json().code).toBe('COLABORADOR_COM_ACESSO');
+    h.expectLogsWithout(emp.cpf, token, NEW_PASSWORD);
+  });
+
+  it('convite novo cancela o anterior; cancelar volta a sem acesso; desligado → 409; contador → 403; fora do escopo → 404', async () => {
+    const emp = await h.createEmployee(org);
+    const first = (await h.call(admin.cookie, 'POST', inviteUrl(emp.id), { email: `a${(n += 1)}@portal.teste.dev` })).json().data.token;
+    const second = await h.call(admin.cookie, 'POST', inviteUrl(emp.id), { email: `b${(n += 1)}@portal.teste.dev` });
+    expect(second.statusCode).toBe(201);
+    expect((await publicCall('preview', { token: first })).statusCode).toBe(404);
+
+    const revoked = await h.call(admin.cookie, 'POST', `${inviteUrl(emp.id)}/revoke`);
+    expect(revoked.json().data).toEqual({ status: 'sem_acesso', email: null, expiresAt: null });
+    expect((await publicCall('preview', { token: second.json().data.token })).statusCode).toBe(404);
+
+    const accountant = await h.loginAs(org, 'contador');
+    expect((await h.call(accountant.cookie, 'POST', inviteUrl(emp.id), { email: 'x@portal.teste.dev' })).statusCode).toBe(403);
+    const scoped = await h.loginAs(org, 'rh', { establishments: [org.otherEstablishmentId] });
+    expect((await h.call(scoped.cookie, 'GET', accessUrl(emp.id))).statusCode).toBe(404);
+    const foreign = await h.loginAs(await h.createOrg(), 'rh');
+    expect((await h.call(foreign.cookie, 'POST', inviteUrl(emp.id), { email: 'y@portal.teste.dev' })).statusCode).toBe(404);
+
+    const pending = (await h.call(admin.cookie, 'POST', inviteUrl(emp.id), { email: `c${(n += 1)}@portal.teste.dev` })).json().data.token;
+    await h.client.query("UPDATE rh.colaboradores SET data_desligamento = '2026-11-20', motivo_desligamento = 'teste' WHERE id = $1", [emp.id]);
+    expect((await accept(pending, emp.cpf)).json().code).toBe('CONVITE_INVALIDO');
+    const gone = await h.call(admin.cookie, 'POST', inviteUrl(emp.id), { email: `d${(n += 1)}@portal.teste.dev` });
+    expect(gone.statusCode).toBe(409);
+    expect(gone.json().code).toBe('COLABORADOR_DESLIGADO');
   });
 });
 

@@ -1,8 +1,8 @@
 /**
  * Férias (G9), sob /portal.
- *   período aquisitivo: abrir rh; consultar rh, admin, gestor (equipe, se ligado);
- *   pedir: rh (por um colaborador) e o próprio colaborador (/me/vacations);
- *   aprovar e recusar: rh; gestor (equipe, se ligado); cancelar: rh.
+ *   período aquisitivo: abrir rh e admin; consultar rh, admin, gestor (equipe, se ligado);
+ *   pedir: rh e admin (por um colaborador) e o próprio colaborador (/me/vacations);
+ *   aprovar e recusar: rh, admin; gestor (equipe, se ligado); cancelar: rh e admin.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { HttpError } from '../../plugins/error-handler';
@@ -22,13 +22,13 @@ const tags = ['Férias'];
 
 export const vacationRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, deps) => {
   const service = new VacationService(deps);
-  const rh = app.authorize('rh');
-  const deciders = app.authorize(...deps.access.roles('rh', 'gestor'));
+  const managers = app.authorize('rh', 'admin');
+  const deciders = app.authorize(...deps.access.roles('rh', 'admin', 'gestor'));
   const self = app.authorize('colaborador');
 
   app.post(
     '/employees/:id/vacation-periods',
-    { preHandler: [rh], schema: { tags, params: idParams, body: createAccrualPeriodBody, response: { 201: accrualPeriodResponse } } },
+    { preHandler: [managers], schema: { tags, params: idParams, body: createAccrualPeriodBody, response: { 201: accrualPeriodResponse } } },
     async (req, reply) => reply.code(201).send({ data: await service.createAccrualPeriod(req.ctx!, req.params.id, req.body) }),
   );
 
@@ -40,7 +40,7 @@ export const vacationRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, dep
 
   app.post(
     '/employees/:id/vacations',
-    { preHandler: [rh], schema: { tags, params: idParams, body: requestVacationBody, response: { 201: vacationResponse } } },
+    { preHandler: [managers], schema: { tags, params: idParams, body: requestVacationBody, response: { 201: vacationResponse } } },
     async (req, reply) => reply.code(201).send({ data: await service.request(req.ctx!, req.params.id, req.body) }),
   );
 
@@ -70,7 +70,7 @@ export const vacationRoutes: FastifyPluginAsyncZod<PortalDeps> = async (app, dep
 
   app.post(
     '/vacations/:id/cancel',
-    { preHandler: [rh], schema: { tags, params: idParams, body: rejectVacationBody, response: { 200: vacationResponse } } },
+    { preHandler: [managers], schema: { tags, params: idParams, body: rejectVacationBody, response: { 200: vacationResponse } } },
     async (req) => ({ data: await service.decide(req.ctx!, req.params.id, 'cancel', req.body.reason) }),
   );
 };

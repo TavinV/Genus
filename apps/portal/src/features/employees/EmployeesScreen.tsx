@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CountTabs } from '@/components/ui/CountTabs';
 import { DataTable } from '@/components/ui/DataTable';
 import { noResultsTitle, SearchBar } from '@/components/ui/SearchBar';
@@ -37,8 +38,9 @@ import { EmployeeSchedulePanel } from '@/features/schedules/EmployeeSchedulePane
 import { AssignmentsPanel } from './AssignmentsPanel';
 import { COPY, PAGE_SIZE, STATUS_TABS, type StatusTab } from './copy';
 import { EmployeeFormPanel } from './EmployeeFormPanel';
-import { useEmployeesList, useTerminateEmployee } from './hooks';
+import { useEmployeesList, useResetPin, useTerminateEmployee } from './hooks';
 import { InitialPinDialog } from './InitialPinDialog';
+import { PortalAccessDialog } from './PortalAccessDialog';
 import { TerminateDialog } from './TerminateDialog';
 
 type Panel = { kind: 'create' } | { kind: 'edit'; employee: Employee } | { kind: 'assignments'; employee: Employee } | { kind: 'schedule'; employee: Employee } | null;
@@ -55,14 +57,19 @@ export function EmployeesScreen() {
   const { text, setText, q, typing } = useTextSearch(() => setUrl({ page: null }));
   const [panel, setPanel] = useState<Panel>(null);
   const [terminating, setTerminating] = useState<Employee | null>(null);
-  const [pin, setPin] = useState<{ pin: string; name: string } | null>(null);
+  const [pin, setPin] = useState<{ pin: string; name: string; reset?: boolean } | null>(null);
+  const [resetting, setResetting] = useState<Employee | null>(null);
+  const [accessFor, setAccessFor] = useState<Employee | null>(null);
 
   const query = useEmployeesList(status === 'todos' ? 'todos' : status, page, q);
   const terminate = useTerminateEmployee();
+  const resetPin = useResetPin();
 
   const canCreate = can(role, 'employee.create');
   const canEdit = can(role, 'employee.edit');
   const canTerminate = can(role, 'employee.terminate');
+  const canResetPin = can(role, 'employee.resetPin');
+  const canPortalAccess = can(role, 'employee.portalAccess');
   const canAssignments = can(role, 'assignment.view');
   const canSchedule = can(role, 'schedule.view');
 
@@ -103,6 +110,8 @@ export function EmployeesScreen() {
           canEdit && { key: 'edit', label: 'Editar', run: () => setPanel({ kind: 'edit', employee: e }) },
           canAssignments && { key: 'assignments', label: 'Vínculos', run: () => setPanel({ kind: 'assignments', employee: e }) },
           canSchedule && { key: 'schedule', label: 'Escala e trocas de turno', run: () => setPanel({ kind: 'schedule', employee: e }) },
+          canPortalAccess && e.status === 'ativo' && { key: 'portal-access', label: COPY.portalAccess.action, run: () => setAccessFor(e) },
+          canResetPin && e.status === 'ativo' && { key: 'reset-pin', label: COPY.resetPin.action, run: () => setResetting(e) },
           canTerminate && e.status === 'ativo' && { key: 'terminate', label: 'Desligar', run: () => setTerminating(e) },
         ].filter((i): i is { key: string; label: string; run: () => void } => i !== false);
         if (items.length === 0) return null;
@@ -121,12 +130,12 @@ export function EmployeesScreen() {
         );
       },
     },
-  ], [canEdit, canAssignments, canSchedule, canTerminate]);
+  ], [canEdit, canAssignments, canSchedule, canPortalAccess, canResetPin, canTerminate]);
 
   if (!can(role, 'nav.employees')) {
     return (
       <PageHeader title={COPY.title} subtitle={COPY.subtitle}>
-        <ForbiddenState screen="Colaboradores" establishment="este estabelecimento" />
+        <ForbiddenState screen="Colaboradores" />
       </PageHeader>
     );
   }
@@ -193,7 +202,20 @@ export function EmployeesScreen() {
         employee={panel?.kind === 'schedule' ? panel.employee : null}
         onOpenChange={(o) => { if (!o) setPanel(null); }}
       />
-      <InitialPinDialog pin={pin?.pin ?? null} name={pin?.name ?? ''} onClose={() => setPin(null)} />
+      <InitialPinDialog pin={pin?.pin ?? null} name={pin?.name ?? ''} reset={pin?.reset} onClose={() => setPin(null)} />
+      <PortalAccessDialog employee={accessFor} onOpenChange={(o) => { if (!o) setAccessFor(null); }} />
+      <ConfirmDialog
+        open={resetting !== null}
+        onOpenChange={(o) => { if (!o) setResetting(null); }}
+        title={COPY.resetPin.title(resetting?.name ?? '')}
+        description={COPY.resetPin.description}
+        confirmLabel={COPY.resetPin.confirm}
+        onConfirm={async () => {
+          if (!resetting) return;
+          const { pin: fresh } = await resetPin.mutateAsync(resetting.id);
+          setPin({ pin: fresh, name: resetting.name, reset: true });
+        }}
+      />
 
       <TerminateDialog
         employee={terminating}

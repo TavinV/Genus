@@ -3,7 +3,7 @@
  * Campos de formulário. Todo campo liga rótulo, dica e erro por id/aria-describedby e marca
  * aria-invalid. O erro tem ícone + texto (estado nunca só por cor).
  */
-import { MagnifyingGlass, WarningCircle } from '@phosphor-icons/react';
+import { Eye, EyeSlash, MagnifyingGlass, WarningCircle } from '@phosphor-icons/react';
 import { useId, useState, type ChangeEvent, type ComponentProps, type ReactNode } from 'react';
 import { Checkbox } from './shadcn/checkbox';
 import { Input } from './shadcn/input';
@@ -80,6 +80,33 @@ export function TextInput({ label, hint, error, required, id, className, ...rest
   return (
     <Field label={label} hint={hint} error={error} required={required} id={id}>
       {(c) => <Input {...c} required={undefined} className={className} {...rest} />}
+    </Field>
+  );
+}
+
+/**
+ * Senha com botão de mostrar/ocultar. O valor continua só no campo (nada em estado da tela); o botão
+ * só troca o `type`. `aria-pressed` diz se a senha está visível.
+ */
+export function PasswordInput({ label, hint, error, required, id, className = '', ...rest }: Omit<InputProps, 'type'>) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <Field label={label} hint={hint} error={error} required={required} id={id}>
+      {(c) => (
+        <div className="relative">
+          <Input {...c} required={undefined} type={visible ? 'text' : 'password'} className={`pr-11 ${className}`} {...rest} />
+          <button
+            type="button"
+            aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+            aria-pressed={visible}
+            aria-controls={c.id}
+            onClick={() => setVisible((v) => !v)}
+            className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center rounded-r-md text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
+          >
+            {visible ? <EyeSlash size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
+          </button>
+        </div>
+      )}
     </Field>
   );
 }

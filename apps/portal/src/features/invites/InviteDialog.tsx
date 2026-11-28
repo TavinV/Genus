@@ -19,32 +19,53 @@ import { COPY, inviteError } from './copy';
 import { inviteSchema, type InviteValues } from './schemas';
 
 const ROLE_OPTIONS = INVITE_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }));
+/** O Select não aceita valor vazio: esta é a opção "toda a conta". */
+const WHOLE_ACCOUNT = 'conta';
 
-export function InviteDialog({ tenantId, open, onOpenChange, onCreated }: {
+export interface InviteCompanyOption {
+  id: EntityId;
+  name: string;
+}
+
+/**
+ * `companies`: empresas da conta para o campo "Acesso" (sem lista, o convite é da conta inteira).
+ * `defaultCompanyId`: abre já com a empresa escolhida (botão no cartão da empresa).
+ */
+export function InviteDialog({ tenantId, open, onOpenChange, onCreated, companies = [], defaultCompanyId = null }: {
   tenantId: EntityId | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (created: CreatedInvite) => void;
+  companies?: InviteCompanyOption[];
+  defaultCompanyId?: EntityId | null;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && <FormBody tenantId={tenantId} onClose={() => onOpenChange(false)} onCreated={onCreated} />}
+      {open && <FormBody tenantId={tenantId} companies={companies} defaultCompanyId={defaultCompanyId} onClose={() => onOpenChange(false)} onCreated={onCreated} />}
     </Dialog>
   );
 }
 
-function FormBody({ tenantId, onClose, onCreated }: { tenantId: EntityId | null; onClose: () => void; onCreated: (created: CreatedInvite) => void }) {
+function FormBody({ tenantId, companies, defaultCompanyId, onClose, onCreated }: {
+  tenantId: EntityId | null;
+  companies: InviteCompanyOption[];
+  defaultCompanyId: EntityId | null;
+  onClose: () => void;
+  onCreated: (created: CreatedInvite) => void;
+}) {
   const { api } = useSession();
   const invalidate = useInvalidate();
   const c = COPY.form;
-  const form = useZodForm(inviteSchema, { name: '', email: '', role: 'rh', cpf: '' });
+  const form = useZodForm(inviteSchema, { name: '', email: '', role: 'rh', companyId: defaultCompanyId ?? '', cpf: '' });
+  const accessOptions = [{ value: WHOLE_ACCOUNT, label: c.wholeAccount }, ...companies.map((co) => ({ value: co.id, label: co.name }))];
+  const fixedCompany = defaultCompanyId === null ? undefined : companies.find((co) => co.id === defaultCompanyId);
   const { register, control, handleSubmit, formState: { errors, isSubmitting } } = form;
   const [formError, setFormError] = useState<string | null>(null);
 
   const submit = async (v: InviteValues) => {
     setFormError(null);
     try {
-      const created = await api.invites.create(tenantId, { name: v.name, email: v.email, role: v.role, cpf: digitsOf(v.cpf) });
+      const created = await api.invites.create(tenantId, { name: v.name, email: v.email, role: v.role, cpf: digitsOf(v.cpf), companyId: v.companyId || null });
       void invalidate('invites');
       onCreated(created);
       onClose();
@@ -52,6 +73,7 @@ function FormBody({ tenantId, onClose, onCreated }: { tenantId: EntityId | null;
       const err = inviteError(e);
       if (err.code === 'EMAIL_IN_USE') form.setError('email', { type: 'server', message: err.message }, { shouldFocus: true });
       else if (err.code === 'CPF_INVALIDO') form.setError('cpf', { type: 'server', message: err.message }, { shouldFocus: true });
+      else if (err.fields?.some((f) => f.path === 'companyId')) setFormError('A empresa escolhida não está disponível (inativa ou sem estabelecimento).');
       else setFormError(applyApiErrors(form, err));
     }
   };
@@ -60,7 +82,7 @@ function FormBody({ tenantId, onClose, onCreated }: { tenantId: EntityId | null;
     <DialogContent className="max-h-[90vh] gap-4 overflow-y-auto">
       <DialogHeader>
         <DialogTitle className="text-lg font-bold">{c.title}</DialogTitle>
-        <DialogDescription>{c.description}</DialogDescription>
+        <DialogDescription>{fixedCompany ? `${fixedCompany.name}. ${c.description}` : c.description}</DialogDescription>
       </DialogHeader>
       <form noValidate onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">
         <TextInput label={c.name} required autoComplete="off" error={errors.name?.message} {...register('name')} />
@@ -72,6 +94,19 @@ function FormBody({ tenantId, onClose, onCreated }: { tenantId: EntityId | null;
             <SelectField label={c.role} required value={field.value} onValueChange={field.onChange} options={ROLE_OPTIONS} error={errors.role?.message} />
           )}
         />
+        {companies.length > 0 && !fixedCompany && (
+          <Controller
+            control={control}
+            name="companyId"
+            render={({ field }) => (
+              <SelectField
+                label={c.access} required hint={c.accessHint} options={accessOptions}
+                value={field.value || WHOLE_ACCOUNT}
+                onValueChange={(v) => field.onChange(v === WHOLE_ACCOUNT ? '' : v)}
+              />
+            )}
+          />
+        )}
         <Controller
           control={control}
           name="cpf"

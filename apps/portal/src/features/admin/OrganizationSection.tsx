@@ -1,6 +1,6 @@
 'use client';
 /** Empresas e estabelecimentos de uma conta: listar, criar, editar, desativar e reativar (não há exclusão). */
-import { Buildings, PencilSimple, Plus } from '@phosphor-icons/react';
+import { Buildings, PencilSimple, Plus, UserPlus } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -9,7 +9,10 @@ import { QueryView } from '@/components/ui/QueryView';
 import { EmptyState, Skeleton } from '@/components/ui/States';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { EntityId } from '@/lib/api/contracts';
-import type { Company, CompanyEstablishment } from '@/lib/api/organization-contracts';
+import type { Company, CompanyEstablishment, CreatedInvite } from '@/lib/api/organization-contracts';
+import { COPY as INVITE_COPY } from '@/features/invites/copy';
+import { InviteDialog } from '@/features/invites/InviteDialog';
+import { InviteLinkDialog } from '@/features/invites/InviteLinkDialog';
 import { formatCnpj } from '@/lib/cnpj';
 import { COPY } from './copy';
 import { useCompanies, useSaveCompany, useSaveEstablishment } from './hooks';
@@ -49,6 +52,9 @@ export function OrganizationSection({ tenantId }: { tenantId: EntityId }) {
   const [company, setCompany] = useState<CompanyTarget | null>(null);
   const [establishment, setEstablishment] = useState<EstablishmentTarget | null>(null);
   const [toggle, setToggle] = useState<Toggle | null>(null);
+  /** Convite de um usuário só para esta empresa (escopo = estabelecimentos dela). */
+  const [inviting, setInviting] = useState<Company | null>(null);
+  const [created, setCreated] = useState<CreatedInvite | null>(null);
 
   const confirmToggle = async () => {
     if (!toggle) return;
@@ -109,6 +115,13 @@ export function OrganizationSection({ tenantId }: { tenantId: EntityId }) {
         >
           {c.addEstablishment}
         </Button>
+        <Button
+          variant="ghost" size="sm" disabled={!co.isActive || co.establishments.length === 0} icon={<UserPlus size={14} aria-hidden />}
+          aria-label={INVITE_COPY.inviteToCompanyLabel(co.legalName)}
+          onClick={() => setInviting(co)}
+        >
+          {INVITE_COPY.inviteToCompany}
+        </Button>
         {!co.isActive && <span className="text-xs text-muted">{c.inactiveCompanyHint}</span>}
       </div>
     </Card>
@@ -131,6 +144,15 @@ export function OrganizationSection({ tenantId }: { tenantId: EntityId }) {
       </QueryView>
 
       <CompanyDialog tenantId={tenantId} target={company} onClose={() => setCompany(null)} />
+      <InviteDialog
+        tenantId={tenantId}
+        open={inviting !== null}
+        onOpenChange={(o) => { if (!o) setInviting(null); }}
+        companies={inviting ? [{ id: inviting.id, name: inviting.legalName }] : []}
+        defaultCompanyId={inviting?.id ?? null}
+        onCreated={setCreated}
+      />
+      <InviteLinkDialog created={created} onDone={() => setCreated(null)} />
       <EstablishmentDialog tenantId={tenantId} target={establishment} onClose={() => setEstablishment(null)} />
       <ConfirmDialog
         open={toggle !== null}

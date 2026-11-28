@@ -154,7 +154,7 @@ export function DayScreen() {
   });
   const shownRecalc = lastRecalc && lastRecalc.date === date && lastRecalc.establishmentId === establishment.id ? lastRecalc : null;
 
-  if (!allowed) return <ForbiddenState screen="Escala e apuração" establishment={establishment.name} />;
+  if (!allowed) return <ForbiddenState screen="Escala e apuração" />;
 
   const canRecalc = can(me.role, 'timesheet.recalculate');
   const canSchedules = can(me.role, 'schedule.view');

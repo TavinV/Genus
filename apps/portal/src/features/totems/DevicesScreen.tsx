@@ -84,7 +84,7 @@ export function DevicesScreen() {
   if (!allowed) {
     return (
       <PageHeader title={COPY.title} subtitle={COPY.subtitle}>
-        <ForbiddenState screen="Totens" establishment={establishment.name} />
+        <ForbiddenState screen="Totens" />
       </PageHeader>
     );
   }

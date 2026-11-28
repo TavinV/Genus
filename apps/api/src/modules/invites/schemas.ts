@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { positiveId } from '../../http/schemas';
 import { MIN_PASSWORD_LENGTH } from '../auth/auth';
-import { INVITE_ROLES, INVITE_STATUSES } from './rules/invite';
+import { ALL_INVITE_ROLES, EMPLOYEE_ACCESS_STATUSES, INVITE_ROLES, INVITE_STATUSES } from './rules/invite';
 
 /** Só o teto: dígitos e verificadores são conferidos no service (400 `CPF_INVALIDO`). */
 const cpfText = z.string().trim().min(1).max(20);
@@ -18,6 +18,8 @@ export const createInviteBody = z.object({
   email: z.email().max(254),
   role: z.enum(INVITE_ROLES),
   cpf: cpfText,
+  /** Convite de uma empresa da conta: o usuário só enxerga os estabelecimentos dela. Ausente ou null = conta inteira. */
+  companyId: positiveId.nullable().optional(),
 });
 
 export const previewInviteBody = z.object({ token });
@@ -28,6 +30,8 @@ export const inviteDto = z.strictObject({
   name: z.string(),
   email: z.string(),
   role: z.enum(INVITE_ROLES),
+  companyId: z.number().nullable(),
+  companyName: z.string().nullable(),
   status: z.enum(INVITE_STATUSES),
   expiresAt: z.string(),
   createdAt: z.string(),
@@ -45,8 +49,26 @@ export const invitePreviewResponse = z.strictObject({
     tenantName: z.string(),
     name: z.string(),
     emailMasked: z.string(),
-    role: z.enum(INVITE_ROLES),
+    role: z.enum(ALL_INVITE_ROLES),
+    companyName: z.string().nullable(),
     expiresAt: z.string(),
   }),
 });
+/** Convite de acesso do colaborador: só o e-mail; nome e CPF saem do cadastro. */
+export const createEmployeeAccessBody = z.object({ email: z.email().max(254) });
+
+export const employeeAccessDto = z.strictObject({
+  status: z.enum(EMPLOYEE_ACCESS_STATUSES),
+  /** E-mail do usuário (ativo ou inativo) ou do convite pendente. */
+  email: z.string().nullable(),
+  /** Prazo do convite pendente. */
+  expiresAt: z.string().nullable(),
+});
+export type EmployeeAccessDto = z.infer<typeof employeeAccessDto>;
+export const employeeAccessResponse = z.strictObject({ data: employeeAccessDto });
+/** `token` aparece SÓ nesta resposta. */
+export const createdEmployeeAccessResponse = z.strictObject({
+  data: z.strictObject({ access: employeeAccessDto, token: z.string() }),
+});
+
 export const acceptedInviteResponse = z.strictObject({ data: z.strictObject({ email: z.string() }) });
